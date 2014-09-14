@@ -1,3 +1,8 @@
+.idea/
+
+# ^^^ Additional joshbits ^^^
+# vvv Standared python .gitignore vvv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
