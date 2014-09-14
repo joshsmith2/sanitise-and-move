@@ -1,0 +1,3 @@
+[submodule "swisspy"]
+	path = swisspy
+	url = https://github.com/joshsmith2/swisspy.git
