@@ -78,37 +78,37 @@ def cleanUp(pid_file, log_file):
     if log_file:
         log_file.close()
 
-def logList(humanHeader,  theList,
-            syslogHeader="", logFiles=[], syslog_files=[],
-            logSplit='\n\t', syslogSplit='\n'):
+def logList(human_header,  the_list,
+            syslog_header="", log_files=[], syslog_files=[],
+            log_split='\n\t', syslog_split='\n'):
     """Log lists of strings gracefully, sending a human readable header and list
     to LOG_FILES, and a machine readable one to syslog_files.
 
-    humanHeader : str
+    human_header : str
         An explanation of what this list represents
-    syslogHeader : str
+    syslog_header : str
         A header for logstash, if required.
-    theList : list
+    the_list : list
         List to be logged
-    logFiles : list : paths
+    log_files : list : paths
         Human readable log files
     syslog_files : list : paths
         Syslog files
-    logSplit : str
+    log_split : str
         Default '\n\t'
         The string with which to join the human readable list.
-    syslogSplit : str
+    syslog_split : str
         Default: '\n'
         The string with which to join the syslog list.
 
     """
-    if logFiles:
-        swisspy.print_and_log(humanHeader + logSplit +  logSplit.join(theList) + "\n",
-                          logFiles=LOG_FILES)
+    if log_files:
+        swisspy.print_and_log(human_header + log_split +  log_split.join(the_list) + "\n",
+                          log_files=LOG_FILES)
     if syslog_files:
-        headedList = [syslogHeader + l for l in theList]
-        swisspy.print_and_log(syslogSplit.join(headedList) + syslogSplit,
-                          syslogFiles=syslog_files, quiet=True, ts=None)
+        headedList = [syslog_header + l for l in the_list]
+        swisspy.print_and_log(syslog_split.join(headedList) + syslog_split,
+                          syslog_files=syslog_files, quiet=True, ts=None)
 
 def moveAndCreate(source,dest):
     """Move a file from source to dest, creating intermediate directories
@@ -137,7 +137,7 @@ def purgeHiddenDir():
         # If any file in .Hidden is already in problemFolder,
         # move it to a new timestamped folder to avoid overwriting.
         if os.path.exists(os.path.join(problemDir, o)):
-            movedTo = os.path.join(problemDir, "Duplicates_" + swisspy.timeStamp('short'))
+            movedTo = os.path.join(problemDir, "Duplicates_" + swisspy.time_stamp('short'))
             os.mkdir(movedTo)
             try:
                 swisspy.print_and_log(str(o) + " has been moved to " + str(movedTo) + "/" + str(o) + \
@@ -336,10 +336,10 @@ def renameToClean(obj, path, objType, renameLogFile):
     if oversizeLogFileName is not None:
         if len(fullPath) > 254:
             if not quiet:
-                print swisspy.timeStamp() + "--WARNING-- Overlong directory found: " + cleanPath + \
+                print swisspy.time_stamp() + "--WARNING-- Overlong directory found: " + cleanPath + \
                       " is " + str(len(cleanPath)) + " characters long.\n"
             if oversizeLogFileName is not None:
-                oversizeFile.write( swisspy.timeStamp() + "Oversize directory: " + cleanPath + "\n")
+                oversizeFile.write( swisspy.time_stamp() + "Oversize directory: " + cleanPath + "\n")
                 oversizeFile.write(str(len(cleanPath)) + " characters long.\n\n")
 
 def sanitise(inString):
@@ -474,7 +474,7 @@ def moveAndMerge(source, dest, retry=3):
     if not os.path.exists(dest):
         try:
             shutil.move(source, dest)
-            swisspy.print_and_log ("No errors found in new folder " + sourceToLog + "." +\
+            swisspy.print_and_log ("No errors found in new folder " + sourceToLog + ". " +\
                                "Folder moved to " + dest + "\n",
                                LOG_FILES, quiet=quiet)
         except shutil.Error as e:
@@ -557,7 +557,7 @@ def moveAndMerge(source, dest, retry=3):
                                               len(existingDifferingFiles),
                                               dest),
                     file_reports,
-                    logFiles=LOG_FILES,
+                    log_files=LOG_FILES,
                     #TODO: Put syslog files in here, into [there_and_different]
                     )
             purgeHiddenDir()
@@ -583,7 +583,7 @@ def moveAndMerge(source, dest, retry=3):
                 logList("An error occurred when moving some files to " + dest +\
                         ".\nError: ",
                         str(errorList),
-                        logFiles=LOG_FILES,
+                        log_files=LOG_FILES,
                         syslog_files=[logstashFiles['failed']])
             else:
                 swisspy.print_and_log("No transfer errors occurred. " +\
@@ -630,8 +630,8 @@ def moveAndMerge(source, dest, retry=3):
                     ", choose 'merge' in the dialogue box which appears, " +\
                     "and delete the folder in " + transferErrorDir + ".",
                     stripHidden(abidingSources, prefix),
-                    syslogHeader="{MovedTo:}" + os.path.abspath(transferErrorDir),
-                    logFiles=LOG_FILES,
+                    syslog_header="{MovedTo:}" + os.path.abspath(transferErrorDir),
+                    log_files=LOG_FILES,
                     syslog_files=[logstashFiles['transfer_error']]
                     )
 
@@ -643,14 +643,17 @@ def moveAndMerge(source, dest, retry=3):
                 moveAndCreate(f,move_to)
 
     if copiedFileList:
-        logList(None, copiedFileList,
-                syslog_files=[logstashFiles['transferred']])
+        logList("The following files transferred successfully: \n\t",
+                copiedFileList,
+                log_files=LOG_FILES,
+                syslog_files=[logstashFiles['transferred']]
+        )
 
     if existingSameFiles:
         logList("The following files already have up to date copies" + \
                 " in the archive, and were therefore not transferred:",
                 stripHidden([e.path for e in existingSameFiles], prefix),
-                logFiles=LOG_FILES,
+                log_files=LOG_FILES,
                 syslog_files=[logstashFiles['there_but_same']],
                 )
         if not existingDifferingFiles:
@@ -801,7 +804,7 @@ def main():
         if not os.path.exists(logFolder):
             os.mkdir(logFolder)
 
-        logPath =  os.path.abspath(os.path.join(logFolder, swisspy.timeStamp('short') + ".log"))
+        logPath =  os.path.abspath(os.path.join(logFolder, swisspy.time_stamp('short') + ".log"))
         logPath = logPath[:259] #Limit folder names to shorter than 260 chars
         logFile = open (logPath, 'w')
         #A list of files to be logged to
