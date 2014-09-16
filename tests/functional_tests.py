@@ -50,11 +50,12 @@ class FileTransferTest(unittest.TestCase):
 
         #Construct a list to run the sanitisePaths command using Popen
         minimal_command = [command_path,
-                                '-t', test_dirs['source'],
-                                '-p', test_dirs['dest'],
-                                '-r', os.path.join(test_dirs['log'],'renamed'),
-                                '-l', os.path.join(test_dirs['log'], 'syslogs')
-                                ]
+                           '-q',
+                           '-t', test_dirs['source'],
+                           '-p', test_dirs['dest'],
+                           '-r', os.path.join(test_dirs['log'],'renamed'),
+                           '-l', os.path.join(test_dirs['log'], 'syslogs')
+                           ]
 
         useful_vars = dict(current_running_dir=current_running_dir,
                            test_dirs=test_dirs,
@@ -81,8 +82,6 @@ class FileTransferTest(unittest.TestCase):
         for d in ['syslogs','renamed']:
             self.make_dir_if_not_exists(os.path.join(test_dirs['log'], d))
 
-    # SCRIPT NEEDS TO:
-    # Not transfer single files from To Archive
     def test_do_not_move_files_not_in_a_directory(self):
         init_vars = self.init_vars()
         td = init_vars['test_dirs']
@@ -95,6 +94,20 @@ class FileTransferTest(unittest.TestCase):
         assert os.path.exists(orphan_file_path)
         assert not os.path.exists(os.path.join(td['dest'], 'orphan.txt'))
         assert not os.listdir(os.path.join(td['source'], 'Logs'))
+
+    def test_clean_files_get_to_dest_safely(self):
+        init_vars = self.init_vars()
+        td = init_vars['test_dirs']
+        container_path = os.path.join(td['source'], 'To Archive', 'new_dir')
+        os.mkdir(container_path)
+        content_path = os.path.join(container_path, 'file_to_transfer.txt')
+        with open(content_path, 'w') as content:
+            content.write("Fast and bulbous")
+
+        sp.call(init_vars['minimal_command'])
+
+        assert os.path.exists(os.path.join(td['dest'], 'new_dir'))
+
 
     # Transfer files without changing the modification time, md5, name etc.
 
