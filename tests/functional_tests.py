@@ -11,14 +11,41 @@ import time
 class FileTransferTest(unittest.TestCase):
 
     def setUp(self):
-        td = self.init_vars()['test_dirs']
-        self.create_dir_structure(td)
+        # Variables
+        self.current_running_path = os.path.abspath(inspect.stack()[0][1])
+        self.current_running_dir = os.path.dirname(self.current_running_path)
+
+        # A dictionary containing all paths which need to be created for the test
+        self.source_dir_name = 'test_source/'
+        self.dest_dir_name = 'test_dest/'
+        self.log_dir_name = 'test_logs/'
+
+        self.test_dirs = {
+            'source': os.path.join(self.current_running_dir, self.source_dir_name),
+            'dest': os.path.join(self.current_running_dir, self.dest_dir_name),
+            'log': os.path.join(self.current_running_dir, self.log_dir_name),
+            }
+
+        self.root_script_dir = os.path.dirname(self.current_running_dir)
+        self.command_path = os.path.abspath(os.path.join(self.root_script_dir,
+                                                    'sanitise-and-move.py'
+        ))
+
+        #Construct a list to run the sanitisePaths command using Popen
+        self.minimal_command = [self.command_path,
+                           '-q',
+                           '-t', self.test_dirs['source'],
+                           '-p', self.test_dirs['dest'],
+                           '-r', os.path.join(self.test_dirs['log'],'renamed'),
+                           '-l', os.path.join(self.test_dirs['log'], 'syslogs')
+        ]
+
+        self.create_dir_structure()
 
     def tearDown(self):
-        td = self.init_vars()['test_dirs']
-        for dir in td:
+        for dir in self.test_dirs:
             try:
-                shutil.rmtree(td[dir])
+                shutil.rmtree(self.test_dirs[dir])
             except OSError as e:
                 error_number = e[0]
                 if error_number == 2: #File doesn't exist
@@ -26,43 +53,6 @@ class FileTransferTest(unittest.TestCase):
                 else:
                     print str(e)
                     raise
-
-
-    def init_vars(self):
-        current_running_path = os.path.abspath(inspect.stack()[0][1])
-        current_running_dir = os.path.dirname(current_running_path)
-
-        # A dictionary containing all paths which need to be created for the test
-        source_dir_name = 'test_source/'
-        dest_dir_name = 'test_dest/'
-        log_dir_name = 'test_logs/'
-
-        test_dirs = {
-            'source': os.path.join(current_running_dir, source_dir_name),
-            'dest': os.path.join(current_running_dir, dest_dir_name),
-            'log': os.path.join(current_running_dir, log_dir_name),
-        }
-
-        root_script_dir = os.path.dirname(current_running_dir)
-        command_path = os.path.abspath(os.path.join(root_script_dir,
-                                                    'sanitise-and-move.py'
-        ))
-
-        #Construct a list to run the sanitisePaths command using Popen
-        minimal_command = [command_path,
-                           '-q',
-                           '-t', test_dirs['source'],
-                           '-p', test_dirs['dest'],
-                           '-r', os.path.join(test_dirs['log'],'renamed'),
-                           '-l', os.path.join(test_dirs['log'], 'syslogs')
-                           ]
-
-        useful_vars = dict(current_running_dir=current_running_dir,
-                           test_dirs=test_dirs,
-                           minimal_command=minimal_command,
-        )
-
-        return useful_vars
 
     def make_dir_if_not_exists(self, dir):
         try:
@@ -74,39 +64,35 @@ class FileTransferTest(unittest.TestCase):
             else:
                 raise
 
-    def create_dir_structure(self, test_dirs):
-        for d_name in test_dirs:
-            self.make_dir_if_not_exists(test_dirs[d_name])
+    def create_dir_structure(self):
+        for d_name in self.test_dirs:
+            self.make_dir_if_not_exists(self.test_dirs[d_name])
         for d in ['.Hidden', 'To Archive', 'Problem Files', 'Logs']:
-            self.make_dir_if_not_exists(os.path.join(test_dirs['source'], d))
+            self.make_dir_if_not_exists(os.path.join(self.test_dirs['source'], d))
         for d in ['syslogs','renamed']:
-            self.make_dir_if_not_exists(os.path.join(test_dirs['log'], d))
+            self.make_dir_if_not_exists(os.path.join(self.test_dirs['log'], d))
 
     def test_do_not_move_files_not_in_a_directory(self):
-        init_vars = self.init_vars()
-        td = init_vars['test_dirs']
-        orphan_file_path = os.path.join(td['source'],'To Archive', 'orphan.txt')
+        orphan_file_path = os.path.join(self.test_dirs['source'],'To Archive', 'orphan.txt')
         with open(orphan_file_path, 'w') as orphan_file:
             orphan_file.write("NO MOVEY FILEY")
 
-        sp.call(init_vars['minimal_command'])
+        sp.call(self.minimal_command)
 
         assert os.path.exists(orphan_file_path)
-        assert not os.path.exists(os.path.join(td['dest'], 'orphan.txt'))
-        assert not os.listdir(os.path.join(td['source'], 'Logs'))
+        assert not os.path.exists(os.path.join(self.test_dirs['dest'], 'orphan.txt'))
+        assert not os.listdir(os.path.join(self.test_dirs['source'], 'Logs'))
 
     def test_clean_files_get_to_dest_safely(self):
-        init_vars = self.init_vars()
-        td = init_vars['test_dirs']
-        container_path = os.path.join(td['source'], 'To Archive', 'new_dir')
+        container_path = os.path.join(self.test_dirs['source'], 'To Archive', 'new_dir')
         os.mkdir(container_path)
         content_path = os.path.join(container_path, 'file_to_transfer.txt')
         with open(content_path, 'w') as content:
             content.write("Fast and bulbous")
 
-        sp.call(init_vars['minimal_command'])
+        sp.call(self.minimal_command)
 
-        assert os.path.exists(os.path.join(td['dest'], 'new_dir'))
+        assert os.path.exists(os.path.join(self.test_dirs['dest'], 'new_dir'))
 
 
     # Transfer files without changing the modification time, md5, name etc.
