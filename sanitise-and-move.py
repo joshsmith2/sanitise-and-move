@@ -228,16 +228,16 @@ def rename_file(path_dict, prev_path, rename_log_file, rename=False, indicator='
                                new_path_to_log + '\n\n',
                                LOG_FILES, ts=None, quiet=QUIET)
 
-def retryWrapper(ERROR_LIST):
+def retry_wrapper(ERROR_LIST):
     """Iterate through ERROR_LIST, retrying the transfer of any failed files"""
     if ERROR_LIST:
         for e in ERROR_LIST:
-            eSourcePath = e[0]
-            eDestPath = e[1]
-            newErrors = retryTransfer(eSourcePath, eDestPath, ERROR_LIST)
-            return newErrors
+            source_path = e[0]
+            dest_path = e[1]
+            new_errors = retry_transfer(source_path, dest_path, ERROR_LIST)
+            return new_errors
 
-def retryTransfer(src,dest,errors):
+def retry_transfer(src,dest,errors):
     """Attempt to retransfer errored files.
     Returns none on success, and raises any errors encountered.
 
@@ -270,101 +270,101 @@ def retryTransfer(src,dest,errors):
         print "\nA fatal error occurred: ", e
         sys.exit(1)
 
-def renameToClean(obj, path, objType, renameLogFile):
+def rename_to_clean(obj, path, obj_type, rename_log_file):
     """If path contains any forbidden characters, sanitise it and rename it.
 
     obj : str
         Name of the file or directory object to be sanitised.
     path : str : path
         Basename to obj - path at which it is located.
-    objType : str : 'file', 'dir'
+    obj_type : str : 'file', 'dir'
         The type of the object to be sanitised ('file' or 'dir')
-    renameLogFile : str : path
+    rename_log_file : str : path
         Path to the file in which to log renamed objects.
 
     """
     global ERRORS_FOUND
-    fullPath = os.path.join(path, obj)
-    cleanPath = fullPath
-    cleanDict = sanitise(obj)
+    full_path = os.path.join(path, obj)
+    clean_path = full_path
+    clean_dict = sanitise(obj)
 
     #If sanitising made any difference, there will be entries in subMade
-    if cleanDict['subsMade']:
+    if clean_dict['subsMade']:
         #Check for strings prefixed with '.', remove this character, and replace it after file renaming.
         ERRORS_FOUND = True
         prefix = ""
-        if cleanDict['outString'][:1] == '.':
+        if clean_dict['outString'][:1] == '.':
             prefix = '.'
-            cleanDict['outString'] = cleanDict['outString'][1:]
+            clean_dict['outString'] = clean_dict['outString'][1:]
         #Separate filename from extension:
-        cleanSplit = cleanDict['outString'].split('.')
+        clean_split = clean_dict['outString'].split('.')
         #For files and directories which were only composed of illegal characters, rename these 'Renamed file' or 'Renamed Folder'
-        if cleanSplit[0].strip() == '':
-            if objType == 'file':
-                cleanDict['outString'] = 'Renamed File' + cleanDict['outString'][len(cleanSplit[0]):]
-            elif objType == 'dir':
-                cleanDict['outString'] = 'Renamed Folder'
+        if clean_split[0].strip() == '':
+            if obj_type == 'file':
+                clean_dict['outString'] = 'Renamed File' + clean_dict['outString'][len(clean_split[0]):]
+            elif obj_type == 'dir':
+                clean_dict['outString'] = 'Renamed Folder'
         #Replace any previously removed periods
-        cleanDict['outString'] = prefix + cleanDict['outString']
-        cleanPath = os.path.join(path, cleanDict['outString'])
+        clean_dict['outString'] = prefix + clean_dict['outString']
+        clean_path = os.path.join(path, clean_dict['outString'])
         #If the clean path already exists, append '(n)' to the filename
-        if os.path.exists(cleanPath) or cleanPath in SANITISED_LIST:
-            cleanPath = swisspy.append_index(cleanSplit[0], cleanDict['outString'][len(cleanSplit[0]):], path)
+        if os.path.exists(clean_path) or clean_path in SANITISED_LIST:
+            clean_path = swisspy.append_index(clean_split[0], clean_dict['outString'][len(clean_split[0]):], path)
         #Set the newly constructed path as the clean path to use
-        cleanDict['outString'] = cleanPath
-        rename_file(cleanDict, fullPath, renameLogFile, RENAME)
+        clean_dict['outString'] = clean_path
+        rename_file(clean_dict, full_path, rename_log_file, RENAME)
     # If the cleaned and original versions are the same, check that there's no
     # case clash with a previously seen file
     else:
         if CASE_SENS:
             extension = ""
-            if fullPath.lower() in L_CASE_LIST:
-                filename = fullPath.split('/')[-1]
+            if full_path.lower() in L_CASE_LIST:
+                filename = full_path.split('/')[-1]
                 if "." in filename:
                     extension = "." + filename.split(".")[-1]
                     filename = filename[:-len(extension)]
-                cleanPath = swisspy.append_index(filename, extension, path)
-                rename_file(cleanDict, fullPath, renameLogFile, RENAME)
+                clean_path = swisspy.append_index(filename, extension, path)
+                rename_file(clean_dict, full_path, rename_log_file, RENAME)
 
     # Append the clean (i.e final) path to the array which will allow us to
     # check for case sensitive clashes, if the case sensitive option is set.
     if CASE_SENS:
-        L_CASE_LIST.append(cleanPath.lower())
+        L_CASE_LIST.append(clean_path.lower())
     if OVERSIZE_LOG_FILE_NAME is not None:
-        if len(fullPath) > 254:
+        if len(full_path) > 254:
             if not QUIET:
-                print swisspy.time_stamp() + "--WARNING-- Overlong directory found: " + cleanPath + \
-                      " is " + str(len(cleanPath)) + " characters long.\n"
+                print swisspy.time_stamp() + "--WARNING-- Overlong directory found: " + clean_path + \
+                      " is " + str(len(clean_path)) + " characters long.\n"
             if OVERSIZE_LOG_FILE_NAME is not None:
-                oversizeFile.write( swisspy.time_stamp() + "Oversize directory: " + cleanPath + "\n")
-                oversizeFile.write(str(len(cleanPath)) + " characters long.\n\n")
+                oversizeFile.write( swisspy.time_stamp() + "Oversize directory: " + clean_path + "\n")
+                oversizeFile.write(str(len(clean_path)) + " characters long.\n\n")
 
-def sanitise(inString):
-    """Remove any occurrences of characters found in blackList from theString,
+def sanitise(in_string):
+    """Remove any occurrences of characters found in black_list from theString,
     except ':' which, for legibility, are changed to '-'
 
     Returns a dictionary consisting of the return string, a list of characters
     substituted, and their positions
 
-    inString : str
+    in_string : str
         The string to be processed
 
     """
-    blackList = '' #Delete these characters. Currently empty.
-    replaceList = [(':','-'), ('`','_'), ('\\','_'), ('/','_'), ('?','_'),
+    black_list = '' #Delete these characters. Currently empty.
+    replace_list = [(':','-'), ('`','_'), ('\\','_'), ('/','_'), ('?','_'),
                    ('"','_'), ('<','_'), ('>','-'), ('|','_'), ('*','_')]
     subsMade = set() #Any characters which have been substituted. Here to catch ':'
     positions = []
-    outStringList = []
+    out_strings = []
 
     """Go through the input string character by character,
     constructing on output list which can be joined to form out output.
     This meticulous approach allows us to identify
     which characters were exchanged, and where. """
-    for n, char in enumerate(inString):
+    for n, char in enumerate(in_string):
         charToAppend = char
         #Remove characters from the blacklist
-        if char in blackList:
+        if char in black_list:
             subsMade.add(char)
             positions.append(n)
             charToAppend = ''
@@ -374,15 +374,15 @@ def sanitise(inString):
             positions.append(n)
             charToAppend = ' '
         #Make any replacements (e.g ':' for '-')
-        for rl in replaceList:
+        for rl in replace_list:
             replaceIn = rl[0]
             replaceOut = rl[1]
             if char == replaceIn:
                 subsMade.add(char)
                 positions.append(n)
                 charToAppend = replaceOut
-        outStringList.append(charToAppend)
-    outString = ''.join(outStringList)
+        out_strings.append(charToAppend)
+    outString = ''.join(out_strings)
     return {'outString':outString, 'subsMade':subsMade, 'positions':positions}
 
 def usage():
@@ -596,7 +596,7 @@ def moveAndMerge(source, dest, retry=3):
                               '\n\t'.join(stripHidden(abidingSources, prefix)) + '\n',
                               LOG_FILES, quiet=QUIET)
 
-            retryErrors = retryWrapper(abidingErrors)
+            retryErrors = retry_wrapper(abidingErrors)
             if retryErrors:
                 abidingErrors = retryErrors
                 abidingSources = [e[0] for e in abidingErrors]
@@ -812,7 +812,7 @@ def main():
             shutil.move(folderStartPath, os.path.join(THE_ROOT,folder))
 
         #Sanitise the directory itself, and update 'folder' if a change is made
-        renameToClean(folder, THE_ROOT, 'dir', renameLogFile)
+        rename_to_clean(folder, THE_ROOT, 'dir', renameLogFile)
         if sanitise(folder)['outString'] != folder:
             folder = sanitise(folder)['outString']
         targetPath = os.path.join(THE_ROOT, folder)
@@ -821,7 +821,7 @@ def main():
         for thePath, theDirs, theFiles in os.walk(targetPath, topdown=False):
             #Sanitise file names
             for f in theFiles:
-                renameToClean(f, thePath, 'file', renameLogFile)
+                rename_to_clean(f, thePath, 'file', renameLogFile)
                 if f in filesToDelete:
                     fullPath = os.path.join(thePath,f)
                     try:
@@ -833,7 +833,7 @@ def main():
                                           LOG_FILES, quiet=QUIET)
             #Sanitise directory names
             for d in theDirs:
-                renameToClean(d, thePath, 'dir', renameLogFile)
+                rename_to_clean(d, thePath, 'dir', renameLogFile)
 
 
         if not ERRORS_FOUND or RENAME:
