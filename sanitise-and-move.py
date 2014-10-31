@@ -442,7 +442,7 @@ def strip_hidden(from_list, to_remove=os.path.abspath(HIDDEN_DIR)):
     """
     return [f[len(to_remove):] for f in from_list]
 
-def moveAndMerge(source, dest, retry=3):
+def move_and_merge(source, dest, retry=3):
     """Copy source to dest, merging child folders which already exist in dest,
     but erroring on any files which already exist there.
 
@@ -770,7 +770,7 @@ def main():
 
     #MAIN FUNCTION:
     for folder in swisspy.immediate_subdirs(TO_ARCHIVE_DIR):
-        deletedFiles = []
+        deleted_files = []
 
         if RENAME:
             if not RENAME_LOG_DIR:
@@ -779,61 +779,61 @@ def main():
                                   LOG_FILES, quiet=QUIET)
                 sys.exit(1)
 
-            renameLogFile = os.path.join(RENAME_LOG_DIR, folder + ".txt")
+            rename_log_file = os.path.join(RENAME_LOG_DIR, folder + ".txt")
         else:
-            renameLogFile = ""
+            rename_log_file = ""
 
-        folderStartPath = os.path.join(TO_ARCHIVE_DIR, folder)
+        folder_start_path = os.path.join(TO_ARCHIVE_DIR, folder)
         #Check the directory to be copied isn't still being written to:
-        if swisspy.dir_being_written_to(folderStartPath):
+        if swisspy.dir_being_written_to(folder_start_path):
                 swisspy.print_and_log(folder + " is being written to. Skipping this time.",
                                   [TEMP_LOG_FILE], ts="long", quiet=QUIET)
                 continue
-        logFolder = os.path.join(ILLEGAL_LOG_DIR, folder)
-        if not os.path.exists(logFolder):
-            os.mkdir(logFolder)
+        log_folder = os.path.join(ILLEGAL_LOG_DIR, folder)
+        if not os.path.exists(log_folder):
+            os.mkdir(log_folder)
 
-        logPath =  os.path.abspath(os.path.join(logFolder, swisspy.time_stamp('short') + ".log"))
+        log_path =  os.path.abspath(os.path.join(log_folder, swisspy.time_stamp('short') + ".log"))
         #A list of files to be logged to
-        LOG_FILES = [logPath[:259]] #Limit folder names to shorter than 260 chars
+        LOG_FILES = [log_path[:259]] #Limit folder names to shorter than 260 chars
 
         swisspy.print_and_log("Processing " + folder + "\n", LOG_FILES, quiet=QUIET)
 
         #Move everything to the hidden folder, unless it's already there, in which case move it to Problem Files
         if folder in swisspy.immediate_subdirs(THE_ROOT):
-            moveTo = os.path.join(PROBLEM_DIR, folder)
+            move_to = os.path.join(PROBLEM_DIR, folder)
             swisspy.print_and_log(str(folder) + " is already being processed."
-                                  "It has been moved to " + moveTo,
+                                  "It has been moved to " + move_to,
                                   LOG_FILES, quiet=QUIET)
-            shutil.move(folderStartPath, moveTo)
+            shutil.move(folder_start_path, move_to)
             continue
 
         else:
-            shutil.move(folderStartPath, os.path.join(THE_ROOT,folder))
+            shutil.move(folder_start_path, os.path.join(THE_ROOT,folder))
 
         #Sanitise the directory itself, and update 'folder' if a change is made
-        rename_to_clean(folder, THE_ROOT, 'dir', renameLogFile)
+        rename_to_clean(folder, THE_ROOT, 'dir', rename_log_file)
         if sanitise(folder)['out_string'] != folder:
             folder = sanitise(folder)['out_string']
-        targetPath = os.path.join(THE_ROOT, folder)
+        target_path = os.path.join(THE_ROOT, folder)
         ERRORS_FOUND = False
 
-        for thePath, theDirs, theFiles in os.walk(targetPath, topdown=False):
+        for the_path, the_dirs, the_files in os.walk(target_path, topdown=False):
             #Sanitise file names
-            for f in theFiles:
-                rename_to_clean(f, thePath, 'file', renameLogFile)
+            for f in the_files:
+                rename_to_clean(f, the_path, 'file', rename_log_file)
                 if f in files_to_delete:
-                    fullPath = os.path.join(thePath,f)
+                    full_path = os.path.join(the_path,f)
                     try:
-                        os.remove(fullPath)
-                        deletedFiles.append(f)
+                        os.remove(full_path)
+                        deleted_files.append(f)
                     except Exception as e:
                         swisspy.print_and_log("Unable to remove file " + f + '\n' +\
-                                          "Error details: " + str(e) + '\n',
-                                          LOG_FILES, quiet=QUIET)
+                                             "Error details: " + str(e) + '\n',
+                                             LOG_FILES, quiet=QUIET)
             #Sanitise directory names
-            for d in theDirs:
-                rename_to_clean(d, thePath, 'dir', renameLogFile)
+            for d in the_dirs:
+                rename_to_clean(d, the_path, 'dir', rename_log_file)
 
 
         if not ERRORS_FOUND or RENAME:
@@ -841,11 +841,11 @@ def main():
             swisspy.print_and_log("Finished sanitising " + str(folder) +\
                               ". Moving to " + PASS_DIR + "\n",
                               LOG_FILES, quiet=QUIET)
-            moveAndMerge(targetPath, passFolder)
+            move_and_merge(target_path, passFolder)
 
         else:
             try:
-                shutil.move(targetPath, PROBLEM_DIR)
+                shutil.move(target_path, PROBLEM_DIR)
                 swisspy.print_and_log ("{} has been moved to" \
                                    "{}.\n".format(folder, PROBLEM_DIR),
                                    LOG_FILES, quiet=QUIET)
