@@ -21,20 +21,20 @@ class FileTransferTest(unittest.TestCase):
         self.log_dir_name = 'test_logs/'
 
         self.source = os.path.join(self.current_dir, self.source_dir_name)
-        self.dest = os.path.join(self.current_dir, self.dest_dir_name)
+
+        self.dest = os.path.join(self.current_dir, self.dest_dir_name) # Local
+        #self.dest = os.path.join("/Volumes/HGSL-Archive/josh_test/",
+        #                         self.dest_dir_name)
         self.log = os.path.join(self.current_dir, self.log_dir_name)
         self.rootdirs = [self.source, self.log, self.dest]
 
         self.source_subfolders = ['.Hidden', 'To Archive', 'Problem Files', 'Logs']
         self.log_subfolders = ['syslogs','renamed']
 
-
-
         self.root_script_dir = os.path.dirname(self.current_dir)
         self.command_path = os.path.abspath(os.path.join(self.root_script_dir,
                                                     'sanitise-and-move.py'
         ))
-
 
         #Construct a list to run the sanitisePaths command using Popen
         self.minimal_command = [self.command_path,
@@ -42,8 +42,9 @@ class FileTransferTest(unittest.TestCase):
                            '-t', self.source,
                            '-p', self.dest,
                            '-r', os.path.join(self.log,'renamed'),
-                           '-l', os.path.join(self.log, 'syslogs')
-        ]
+                           '-l', os.path.join(self.log, 'syslogs'),]
+        self.rename_command = self.minimal_command[:]
+        self.rename_command.append('-d')
 
         for root_dir in self.rootdirs:
             self.make_dir_if_not_exists(root_dir)
@@ -59,7 +60,6 @@ class FileTransferTest(unittest.TestCase):
                     os.path.join(self.log, folder))
             self.make_dir_if_not_exists(getattr(self, folder))
 
-
     def tearDown(self):
         for dir in self.rootdirs:
             try:
@@ -71,6 +71,32 @@ class FileTransferTest(unittest.TestCase):
                 else:
                     print str(e)
                     raise
+
+    def check_in_logs(self, folder, messages):
+        self.get_log_contents(folder)
+        for m in messages:
+            self.assertIn(m, '\n'.join(self.log_contents))
+
+    def in_problem_files(self, folder):
+        folder_in_pf = False
+        problem_dir = os.path.join(self.source, 'Problem Files', folder)
+        if os.path.exists(problem_dir):
+            folder_in_pf = True
+        return folder_in_pf
+
+    def in_dest(self, folder):
+        folder_in_dest = False
+        dest_dir = os.path.join(self.dest, folder)
+        if os.path.exists(dest_dir):
+            folder_in_dest = True
+        return folder_in_dest
+
+    def get_log_contents(self, folder_name):
+        log_dir = os.path.join(self.source, 'Logs')
+        for log_file in os.listdir(os.path.join(log_dir, folder_name)):
+            log_path = os.path.join(log_dir, folder_name, log_file)
+            with open(log_path, 'r') as lp:
+                self.log_contents = lp.readlines()
 
     def make_dir_if_not_exists(self, dir):
         try:
@@ -112,7 +138,6 @@ class FileTransferTest(unittest.TestCase):
 
         self.assertTrue(os.path.exists(os.path.join(self.dest, 'new_dir')))
 
-
     # Transfer files without changing the modification time, md5, name etc.
     def test_file_gets_there_intact(self):
         full_container = os.path.join(self.source,
@@ -142,9 +167,112 @@ class FileTransferTest(unittest.TestCase):
         self.assertEqual(observed_md5, correct_md5)
         self.assertEqual(observed_mod_time, correct_mod_time)
 
-    # Delete .DS_Store files
+    # Do not transfer any existing same files
+    def test_same_files_not_transferred(self):
+        same_file_dir = os.path.join(self.source,
+                                     'To Archive',
+                                     'same_file')
+        os.mkdir(same_file_dir)
+        test_file_source = os.path.join(self.current_dir, 'test_file')
+        test_file_dest = os.path.join(self.dest, 'same_file')
 
-    # Not transfer any existing same files
+        shutil.copy(test_file_source, same_file_dir)
+        shutil.copytree(same_file_dir, test_file_dest)
+
+        self.assertTrue(os.path.exists(os.path.join(self.dest,
+                                                    'same_file',
+                                                    'test_file')))
+
+        sp.call(self.minimal_command)
+
+        self.assertFalse(self.in_problem_files('same_file'))
+        expected_logs = ["The following files already have up to date copies " +\
+                         "in the archive, and were therefore not transferred:\n",
+                         "\tsame_file/test_file\n"]
+        self.check_in_logs('same_file', expected_logs)
+
+    # Log problem files without renaming them
+    def test_log_bad_files(self):
+        bad_dir = os.path.join(self.source, 'To Archive', 'bad')
+        bad_subdir_names = ['***', '"strings??', 'white\tspace\n',
+                            'multi', 'multi*', 'multi?']
+        clean_subdir_names = ['___', '_strings__', 'multi', 'multi_',
+                              'multi_(1)', 'white space']
+        bad_sub_dirs = [os.path.join(bad_dir, bsn) for bsn in bad_subdir_names]
+        clean_sub_dirs = [os.path.join(bad_dir, csn) for csn in clean_subdir_names]
+
+        os.mkdir(bad_dir)
+        for bsd in bad_sub_dirs:
+            os.mkdir(bsd)
+
+        sp.call(self.minimal_command)
+
+        self.assertTrue(self.in_problem_files('bad'))
+        self.assertFalse(self.in_dest('bad'))
+
+        expected_logs = ["bad has been moved to"]
+        illegal_message = "Illegal characters found in file   : bad/"
+        change_message = "Suggested change                   : bad/"
+        illegal_messages = [illegal_message + b for b in bad_subdir_names]
+        change_messages = [change_message + c for c in clean_subdir_names]
+        expected_logs.extend(illegal_messages)
+        expected_logs.extend(change_messages)
+        self.check_in_logs("bad", expected_logs)
+
+    #Rename files if asked
+    def test_rename_bad_files(self):
+        bad_dir = os.path.join(self.source, 'To Archive', 'bad')
+        bad_subdir_names = ['***', '"strings??', 'white\tspace\n',
+                            'multi', 'multi*', 'multi?',]
+        clean_subdir_names = ['___', '_strings__', 'multi', 'multi_',
+                              'multi_(1)', 'white space',]
+        bad_sub_dirs = [os.path.join(bad_dir, bsn) for bsn in bad_subdir_names]
+        clean_sub_dirs = [os.path.join(bad_dir, csn) for csn in clean_subdir_names]
+        os.mkdir(bad_dir)
+        for bsd in bad_sub_dirs:
+            os.mkdir(bsd)
+
+        sp.call(self.rename_command)
+
+        self.assertFalse(self.in_problem_files('bad'))
+        self.assertTrue(self.in_dest('bad'))
+
+        expected_logs = ["Finished sanitising bad."]
+        illegal_message = "Changed from: bad/"
+        change_message = "Changed to:   bad/"
+        illegal_messages = [illegal_message + b for b in bad_subdir_names]
+        change_messages = [change_message + c for c in clean_subdir_names]
+        expected_logs.extend(illegal_messages)
+        expected_logs.extend(change_messages)
+        self.check_in_logs("bad", expected_logs)
+
+        for f in [os.path.join(self.dest, 'bad', c) for c in clean_subdir_names]:
+            self.assertTrue(os.path.exists(f))
+
+    # Add trailing spaces to renaming
+    def test_remove_trailing_spaces(self):
+        spaces_dir = os.path.join(self.source, 'To Archive', 'spaces')
+        os.mkdir(spaces_dir)
+        swisspy.make_file(spaces_dir, 'file with trailing space ')
+        swisspy.make_file(spaces_dir, 'file with trailing spaces   ')
+        os.mkdir(os.path.join(spaces_dir, 'dir with trailing space '))
+
+        sp.call(self.rename_command)
+
+        self.assertTrue(self.in_dest('spaces'))
+        changed = ['file with trailing space', 'file with trailing spaces',
+                   'dir with trailing space']
+        changed_paths = [os.path.join('spaces', c) for c in changed]
+        for c in changed_paths:
+            self.assertTrue(os.path.exists(c), c + " does not exist")
+
+
+
+
+
+
+
+    # Delete .DS_Store files
 
     # Error on any existing different files
 
@@ -154,9 +282,10 @@ class FileTransferTest(unittest.TestCase):
 
     # Not be able to run twice on the same directory
 
-    # Rename any files with blacklisted names, and log these properly.
+    # Delete successfully retried files from PF
 
     # Log files which want to be logged, put them into pf and do not transfer.
+
 
 if __name__ == '__main__':
     unittest.main(exit=False)

@@ -22,6 +22,7 @@ import atexit
 import getopt
 import os
 import os.path
+import re
 import shutil
 import sys
 import swisspy
@@ -201,7 +202,7 @@ def rename_file(path_dict, prev_path, rename_log_file, rename=False, indicator='
 
             swisspy.print_and_log("Changed from: " + path_to_log + '\n' +\
                               "Changed to:   " + new_path_to_log + '\n\n',
-                               change_log_files, ts="long", quiet=QUIET)
+                               change_log_files, ts=None, quiet=QUIET)
             # ...and for logstash.
             if LOGSTASH_DIR:
                 with open(logstash_files['renamed'], 'a') as lsf:
@@ -339,7 +340,7 @@ def rename_to_clean(obj, path, obj_type, rename_log_file):
                 oversize_file.write(swisspy.time_stamp() + "Oversize directory: " + clean_path + "\n")
                 oversize_file.write(str(len(clean_path)) + " characters long.\n\n")
 
-def sanitise(in_string):
+def sanitise(in_string, strip_trailing_spaces=True):
     """Remove any occurrences of characters found in black_list from theString,
     except ':' which, for legibility, are changed to '-'
 
@@ -348,7 +349,8 @@ def sanitise(in_string):
 
     in_string : str
         The string to be processed
-
+    strip_trailing_spaces : Bool
+        If true, remove any number of trailing spaces from the end of the string.
     """
     black_list = '' #Delete these characters. Currently empty.
     replace_list = [(':','-'), ('`','_'), ('\\','_'), ('/','_'), ('?','_'),
@@ -383,6 +385,8 @@ def sanitise(in_string):
                 to_append = replace_out
         out_strings.append(to_append)
     out_string = ''.join(out_strings)
+    if strip_trailing_spaces:
+        out_string = re.split(' +$', out_string)[0]
     return {'out_string':out_string, 'subs_made':subs_made, 'positions':positions}
 
 def usage():
@@ -700,7 +704,7 @@ QUIET = False
 RENAME = False
 RENAME_LOG_DIR = None
 TARGET = TO_ARCHIVE_DIR
-TEMP_LOG_FILE = open ("/tmp/saniTempLog.log", 'a')
+TEMP_LOG_FILE = "/tmp/saniTempLog.log"
 THE_ROOT = HIDDEN_DIR
 
 for o, a in opts:
@@ -713,10 +717,9 @@ for o, a in opts:
             QUIET = True
         elif o in ("-o","--oversizelog"):
             OVERSIZE_LOG_FILE_NAME = a
-            oversize_out = os.path.abspath(OVERSIZE_LOG_FILE_NAME)
-            oversize_file = open (oversize_out, 'a')
+            oversize_file = os.path.abspath(OVERSIZE_LOG_FILE_NAME)
         elif o == "--temp-log-file":
-            TEMP_LOG_FILE = open(os.path.abspath(a), 'a')
+            TEMP_LOG_FILE = os.path.abspath(a)
         elif o == "--DEBUG":
             DEBUG = True
         elif o in ("-c", "--casesensitive"):
@@ -807,7 +810,6 @@ def main():
                                   LOG_FILES, quiet=QUIET)
             shutil.move(folder_start_path, move_to)
             continue
-
         else:
             shutil.move(folder_start_path, os.path.join(THE_ROOT,folder))
 
@@ -861,9 +863,9 @@ if __name__ == '__main__':
         main()
     except Exception as e:
         try:
-            with open(os.path.join(LOGSTASH_DIR,"errors.txt"), 'a') as error_file:
-                swisspy.print_and_log("\nError encountered: " +  str(e),
-                                      log_files=[error_file], quiet=False)
+            error_file = os.path.join(LOGSTASH_DIR, "errors.txt")
+            swisspy.print_and_log("\nError encountered: " +  str(e),
+                                  log_files=[error_file], quiet=False)
         except IOError:
             print "Couldn't open /var/log/sanitisePathsSysLogs/errors.txt"
         raise
