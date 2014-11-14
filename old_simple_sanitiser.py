@@ -13,39 +13,29 @@ import datetime
 
 def sanitise(inString):
 #This function removes any occurences of characters found in blackList from theString, except ':' which, for legibility, are changed to '-'
-
-		outString = inString.translate(None, blackList)
-
+		outString = inString
+		for b in blackList:
+		    outString = outString.replace(b, '_')
 		#Remove all whitespace from filenames except spaces (from http://stackoverflow.com/questions/1898656/remove-whitespace-in-python-using-string-whitespace)
 		noWhitespaceString = ' '.join(outString.split())
-
 		#Prevent multiple runs of whitespace from being stripped
 		noMultSpaceString = ' '.join(re.split(' +', outString))
-	
 		if noMultSpaceString != noWhitespaceString:
-			
 			outString = noWhitespaceString
-
 		#Substitute hyphens for colons, to help legibility
 		outString = re.sub(':','-',outString)
-
 		return str(outString)
 
 def appendIndex(filename, ext, path):
 #Given a file 'filename' at location 'path' with extension 'ext', this will return the path of filename(n)ext, where n is the lowest integer for which filename(n-1)ext already exitsts.
 
 	index = 1
-
 	appendedFile = filename + "(" + str(index) + ")" + ext
-
 	appendedPath = os.path.join(path, appendedFile)
-
 	while os.path.exists(appendedPath) or appendedPath in sanitisedList:
-		
 		index += 1
 		appendedFile = filename + "(" + str(index) + ")" + ext
 		appendedPath = os.path.join(path, appendedFile)
-
 	return appendedPath
 
 def timeStamp():
@@ -145,7 +135,7 @@ def renameToClean(path, obj, objType):
 	
 					renameFile(fullPath, cleanPath, rename)
 
-	 	#Append the clean (i.e final) path to the array which will allow us to check for case sensitive clashes, if the case sensitive option is set. 
+        #Append the clean (i.e final) path to the array which will allow us to check for case sensitive clashes, if the case sensitive option is set.
 	 	if caseSens:
 			lCaseList.append(cleanPath.lower())
 
