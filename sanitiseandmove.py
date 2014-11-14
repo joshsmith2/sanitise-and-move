@@ -27,6 +27,7 @@ import sys
 import swisspy
 from itertools import chain
 import subprocess as sp
+import argparse
 from string import whitespace
 
 #These can be reconfigured depending on the folder structure
@@ -59,6 +60,10 @@ class File:
         self.size = size
         self.m_time = m_time
         self.md5 = md5
+
+class Sanitisation:
+    def __init__(self):
+        pass
 
 def clean_up(pid_file, log_file):
     """Run some cleanup tasks on unexpected exit"""
@@ -402,22 +407,6 @@ def sanitise(in_string, strip_trailing_spaces=True):
             positions.append(len(in_string) - r - 1)
     return {'out_string':out_string, 'subs_made':subs_made, 'positions':positions}
 
-def usage():
-        print ("sanitise-and-move : A utility to facilitate cross-platform "\
-               "file transfers, by dealing with illegal characters in a "\
-               "sensible way. Developed by Josh Smith (joshsmith2@gmail.com)")
-        print ("\nUsage:")
-        print ("   -c, --casesensitive: For use on case sensitive filesystems Default - off.")
-        print ("   -d, --dorename:      Actually rename the files - otherwise just log and output to standard output.")
-        print ("   -h, --help:          Print this help and exit.")
-        print ("   -l  --LOGSTASH_DIR:   A directory on the archive box containing a set of files sent by rsyslog to logstash.")
-        print ("   -r  --RENAME_LOG_DIR:  Directory, usually on the destination, for logs of files which have been renamed to be stored.")
-        print ("   -o, --oversizelog:   Log to write files with overlong path names in - otherwise don't log.")
-        print ("   -p, --passdir:       Directory to which clean files should be moved.")
-        print ("   -q, --QUIET:         Don't output to standard out.")
-        print ("   -t, --target:        The location of the hot folder")
-        print ("   --temp-log-file:     A file to write log information to\n")
-
 def write_pid(dir_id):
     """Write PID file to prevent multiple syncronously running instances of the
     program.
@@ -446,6 +435,42 @@ def write_pid(dir_id):
         pf = open(pid_file, 'w')
         pf.write(str(os.getpid()))
     atexit.register(clean_up, pid_file=pid_file, log_file=LOG_FILE)
+
+def get_arguments():
+    """Return command line arguments from argparse"""
+    blurb = "sanitise-and-move : A utility to facilitate cross-platform "\
+               "file transfers, by dealing with illegal characters in a "\
+               "sensible way. Developed by Josh Smith (joshsmith2@gmail.com)"
+    p = argparse.ArgumentParser(description=blurb)
+    p.add_argument('-c','--casesensitive', dest='casesensitive',
+                   action='store_true', default=False,
+                   help="For use on case sensitive filesystems Default - off.")
+    p.add_argument('-d','--dorename', dest='dorename',
+                   action='store_true', default=False,
+                   help="Actually rename the files - otherwise just log "
+                        "and output to standard output.")
+    p.add_argument('-l','--logstash_dir', dest='logstash_dir', metavar="PATH",
+                   help="A directory on the archive box containing a set of "
+                        "files sent by rsyslog to logstash.")
+    p.add_argument('-r','--rename_log_dir', dest='rename_log_dir',
+                   metavar="PATH",
+                   help="Directory, usually on the destination, for logs of "
+                        "files which have been renamed to be stored.")
+    p.add_argument('-o','--oversizelog', dest='oversizelog', metavar="PATH",
+                   help="Log to write files with overlong path names in - "
+                        "otherwise don't log.")
+    p.add_argument('-p','--passdir', dest='passdir', metavar="PATH",
+                   help="Directory to which clean files should be moved.")
+    p.add_argument('-q','--quiet', dest='quiet', action='store_true',
+                   default=False,
+                   help="Don't output to standard out")
+    p.add_argument('-t','--target', dest='target', metavar='PATH',
+                   help="The location of the hot folder.")
+    p.add_argument('--temp-log-file', dest='temp-log-file', metavar='PATH',
+                   help="A file to write temporary log information to.")
+    #TODO: What does this store?
+    return p.parse_args()
+
 
 def strip_hidden(from_list, to_remove=os.path.abspath(HIDDEN_DIR)):
     """Given a lost of files, remove a given common path from them - in this
@@ -694,7 +719,6 @@ try:
 
 except getopt.GetoptError as err:
         # print help information and exit:
-        usage()
         print str(err) # will print something like "option -a not recognized"
         sys.exit(2)
 
@@ -724,7 +748,6 @@ for o, a in opts:
         if o in ("-d","--dorename"):
             RENAME = True
         elif o in ("-h","--help"):
-            usage()
             sys.exit(2)
         elif o in ("-q","--QUIET"):
             QUIET = True
