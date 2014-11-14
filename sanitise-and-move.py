@@ -22,7 +22,6 @@ import atexit
 import getopt
 import os
 import os.path
-import re
 import shutil
 import sys
 import swisspy
@@ -355,6 +354,9 @@ def sanitise(in_string, strip_trailing_spaces=True):
     black_list = '' #Delete these characters. Currently empty.
     replace_list = [(':','-'), ('`','_'), ('\\','_'), ('/','_'), ('?','_'),
                    ('"','_'), ('<','_'), ('>','-'), ('|','_'), ('*','_')]
+    strip_from_end = [' '] # Strip any of these characters from the end of the string
+    strip_count = 0
+    strip_chars_found = []
     subs_made = set() #Any characters which have been substituted. Here to catch ':'
     positions = []
     out_strings = []
@@ -383,10 +385,21 @@ def sanitise(in_string, strip_trailing_spaces=True):
                 subs_made.add(char)
                 positions.append(n)
                 to_append = replace_out
+        if char in strip_from_end:
+            strip_count += 1
+            strip_chars_found.append(char)
+        else:
+            strip_count = 0
+            strip_chars_found = []
         out_strings.append(to_append)
     out_string = ''.join(out_strings)
-    if strip_trailing_spaces:
-        out_string = re.split(' +$', out_string)[0]
+    #If we've found any characters to strip, remove these from the end of the string.
+    if strip_count > 0:
+        out_string = out_string[:-strip_count]
+        for scf in strip_chars_found:
+            subs_made.add(scf)
+        for r in range(strip_count):
+            positions.append(len(in_string) - r - 1)
     return {'out_string':out_string, 'subs_made':subs_made, 'positions':positions}
 
 def usage():

@@ -247,7 +247,7 @@ class FileTransferTest(unittest.TestCase):
         self.check_in_logs("bad", expected_logs)
 
         for f in [os.path.join(self.dest, 'bad', c) for c in clean_subdir_names]:
-            self.assertTrue(os.path.exists(f))
+            self.assertTrue(os.path.exists(f), f + " does not exist")
 
     # Add trailing spaces to renaming
     def test_remove_trailing_spaces(self):
