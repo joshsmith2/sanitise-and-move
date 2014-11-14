@@ -30,13 +30,6 @@ import subprocess as sp
 import argparse
 from string import whitespace
 
-#These can be reconfigured depending on the folder structure
-TO_ARCHIVE_DIR = "./To Archive"
-PASS_DIR =  "./Passed_For_Archive"
-ILLEGAL_LOG_DIR = "./Logs"
-PROBLEM_DIR = "./Problem Files"
-HIDDEN_DIR = "./.Hidden"
-TRANSFER_ERROR_DIR=os.path.join(PROBLEM_DIR,"_Transfer_Errors")
 
 class File:
     """Used to define a file which exists in source and dest
@@ -61,9 +54,7 @@ class File:
         self.m_time = m_time
         self.md5 = md5
 
-class Sanitisation:
-    def __init__(self):
-        pass
+
 
 def clean_up(pid_file, log_file):
     """Run some cleanup tasks on unexpected exit"""
@@ -707,63 +698,62 @@ def move_and_merge(source, dest, retry=3):
             swisspy.print_and_log("Removed the following empty directories:\n\t" +\
                               '\n\t'.join(strip_hidden(empty_dirs, prefix)) + '\n')
 
-#Initialise command line options
-try:
-    opts, args = getopt.getopt(sys.argv[1:],
-                               "r:l:o:t:p:qdhcx",
-                               ["RENAME_LOG_DIR=","LOGSTASH_DIR=","oversizelog=",
-                                "target=","passdir=","QUIET","dorename",
-                                "help","casesensitive","DEBUG",
-                                "temp-log-file",]
-                              )
+class Sanitisation:
+    """This is the parent object, containing variables for the sanitisation,
+    which will be referred to throughout in order to avoid passing global
+    variables around.
+    """
 
-except getopt.GetoptError as err:
-        # print help information and exit:
-        print str(err) # will print something like "option -a not recognized"
-        sys.exit(2)
+    def __init__(self, case_sens=False, debug=False,
+                 error_log_file_name = None, log_file=None, location=None,
+                 logstash_dir=None, oversize_log_file_name=None, quiet=False,
+                 rename=False, rename_log_dir=None,
+                 temp_log_file="/tmp/saniTempLog.log"):
 
-SANITISED_LIST = []
-ERROR_LIST = []
-L_CASE_LIST = []
-LOG_FILES = []
+        # The standard folder structure within the hot folder
+        dirs = {'to_archive': "./To Archive",
+                'log': "./Logs",
+                'problem': "./Problem Files",
+                'hidden': "./.Hidden",
+                'pass': "./Passed_For_Archive", # Really?
+                 }
 
-#Argument variables
-CASE_SENS = False
-DEBUG = False #NB - this variable used only during development, so not in the --help.
-ERRORS_FOUND = False
-ERROR_LOG_FILE_NAME = None
-LOG_FILE = None
-LOCATION = None
-LOGSTASH_DIR = None
-OLD_PATH = ""
-OVERSIZE_LOG_FILE_NAME = None
-QUIET = False
-RENAME = False
-RENAME_LOG_DIR = None
-TARGET = TO_ARCHIVE_DIR
-TEMP_LOG_FILE = "/tmp/saniTempLog.log"
-THE_ROOT = HIDDEN_DIR
+        #TODO: Variable descriptions
 
-for o, a in opts:
-        if o in ("-d","--dorename"):
-            RENAME = True
-        elif o in ("-h","--help"):
-            sys.exit(2)
-        elif o in ("-q","--QUIET"):
-            QUIET = True
-        elif o in ("-o","--oversizelog"):
-            OVERSIZE_LOG_FILE_NAME = a
-            oversize_file = os.path.abspath(OVERSIZE_LOG_FILE_NAME)
-        elif o == "--temp-log-file":
-            TEMP_LOG_FILE = os.path.abspath(a)
-        elif o == "--DEBUG":
-            DEBUG = True
-        elif o in ("-c", "--casesensitive"):
-            CASE_SENS = True
-        elif o in ("-p", "--passdir"):
-            PASS_DIR = a
-        elif o in ("-x", "--PROBLEM_DIR"):
-            PROBLEM_DIR = a
+        # Attributes with set initial values
+        self.sanitised_list = []
+        self.error_list = []
+        self.l_case_list = []
+        self.log_files = []
+        self.errors_found = False
+        self.old_path = ''
+        self.to_archive_dir = dirs['to_archive']
+        self.pass_dir = dirs['pass']
+        self.illegal_log_dir = dirs['log']
+        self.problem_dir = dirs['problem']
+        self.hidden_dir = dirs['hidden']
+        self.transfer_error_dir = os.path.join(self.problem_dir,
+                                               "_Transfer_Errors")
+
+        # Switches
+        self.case_sens = case_sens
+        self.debug = debug
+        self.quiet = quiet
+        self.rename = rename
+
+        # Paths - e.g to log files
+        self.error_log_file_name = error_log_file_name
+        self.log_file = log_file
+        self.location = location
+        self.logstash_dir = os.path.ablogstash_dir
+        self.oversize_log_file_name = os.path.abspath(oversize_log_file_name)
+        self.rename_log_dir = rename_log_dir
+        self.temp_log_file = os.path.abspath(temp_log_file)
+
+        # Silly duplications. TODO: Get rid of these.
+        self.target = self.to_archive_dir
+        self.the_root = self.hidden_dir
+
         elif o in ("-l", "--logstashdir"):
             LOGSTASH_DIR = os.path.abspath(a)
         elif o in ("-r", "--renamelogdir"):
