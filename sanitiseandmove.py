@@ -708,30 +708,34 @@ class Sanitisation:
                  error_log_file_name = None, log_file=None, location=None,
                  logstash_dir=None, oversize_log_file_name=None, quiet=False,
                  rename=False, rename_log_dir=None,
-                 temp_log_file="/tmp/saniTempLog.log"):
+                 temp_log_file="/tmp/saniTempLog.log",
+                 target='.'):
+
+        self.target = target
 
         # The standard folder structure within the hot folder
-        dirs = {'to_archive': "./To Archive",
-                'log': "./Logs",
-                'problem': "./Problem Files",
-                'hidden': "./.Hidden",
-                'pass': "./Passed_For_Archive", # Really?
+        dirs = {'to_archive': os.path.join(self.target, "To Archive"),
+                'log': os.path.join(self.target, "Logs"),
+                'problem': os.path.join(self.target, "Problem Files"),
+                'hidden': os.path.join(self.target, ".Hidden"),
+                'pass': os.path.join(self.target, "Passed_For_Archive"), # TODO: Really?
                  }
 
         #TODO: Variable descriptions
 
         # Attributes with set initial values
-        self.sanitised_list = []
         self.error_list = []
+        self.errors_found = False
         self.l_case_list = []
         self.log_files = []
-        self.errors_found = False
         self.old_path = ''
-        self.to_archive_dir = dirs['to_archive']
-        self.pass_dir = dirs['pass']
-        self.illegal_log_dir = dirs['log']
-        self.problem_dir = dirs['problem']
+        self.sanitised_list = []
+
         self.hidden_dir = dirs['hidden']
+        self.illegal_log_dir = dirs['log'] #TODO: Really?
+        self.pass_dir = dirs['pass']
+        self.problem_dir = dirs['problem']
+        self.to_archive_dir = dirs['to_archive']
         self.transfer_error_dir = os.path.join(self.problem_dir,
                                                "_Transfer_Errors")
 
@@ -745,28 +749,17 @@ class Sanitisation:
         self.error_log_file_name = error_log_file_name
         self.log_file = log_file
         self.location = location
-        self.logstash_dir = os.path.ablogstash_dir
+        self.logstash_dir = os.path.abspath(logstash_dir)
         self.oversize_log_file_name = os.path.abspath(oversize_log_file_name)
-        self.rename_log_dir = rename_log_dir
+        self.rename_log_dir = os.path.abspath(rename_log_dir)
         self.temp_log_file = os.path.abspath(temp_log_file)
 
         # Silly duplications. TODO: Get rid of these.
-        self.target = self.to_archive_dir
         self.the_root = self.hidden_dir
 
-        elif o in ("-l", "--logstashdir"):
-            LOGSTASH_DIR = os.path.abspath(a)
-        elif o in ("-r", "--renamelogdir"):
-            RENAME_LOG_DIR = os.path.abspath(a)
-        elif o in ("-t", "--target"):
-            TARGET = a
-            THE_ROOT = path_join(TARGET, THE_ROOT)
-            ILLEGAL_LOG_DIR = path_join(TARGET, ILLEGAL_LOG_DIR)
-            PASS_DIR = path_join(TARGET, PASS_DIR)
-            PROBLEM_DIR = path_join(TARGET, PROBLEM_DIR)
-            TO_ARCHIVE_DIR = path_join(TARGET, TO_ARCHIVE_DIR)
-            HIDDEN_DIR = path_join(TARGET, HIDDEN_DIR)
-            TRANSFER_ERROR_DIR=os.path.join(PROBLEM_DIR,"_Transfer_Errors")
+
+def main_process(s):
+
 
 #Construct a directory id for use in PID and log files
 dir_id = TARGET[:259]

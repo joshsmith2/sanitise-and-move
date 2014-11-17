@@ -286,6 +286,7 @@ class FileTransferTest(unittest.TestCase):
 
     # Log files which want to be logged, put them into pf and do not transfer.
 
+    # Remove resource forks properly
 
 if __name__ == '__main__':
     unittest.main(exit=False)
