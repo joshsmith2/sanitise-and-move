@@ -17,6 +17,7 @@ Contact: joshsmith2@gmail.com
 #FORMATTING:
 #TODO: Fix string formatting for some long strings
 #TODO: Line lengths
+#TODO: Change the_root to hidden?
 
 import atexit
 import getopt
@@ -266,74 +267,7 @@ def retry_transfer(src,dest,errors):
         print "\nA fatal error occurred: ", e
         sys.exit(1)
 
-def rename_to_clean(obj, path, obj_type, rename_log_file):
-    """If path contains any forbidden characters, sanitise it and rename it.
 
-    obj : str
-        Name of the file or directory object to be sanitised.
-    path : str : path
-        Basename to obj - path at which it is located.
-    obj_type : str : 'file', 'dir'
-        The type of the object to be sanitised ('file' or 'dir')
-    rename_log_file : str : path
-        Path to the file in which to log renamed objects.
-
-    """
-    global ERRORS_FOUND
-    full_path = os.path.join(path, obj)
-    clean_path = full_path
-    clean_dict = sanitise(obj)
-
-    #If sanitising made any difference, there will be entries in subMade
-    if clean_dict['subs_made']:
-        #Check for strings prefixed with '.', remove this character, and replace it after file renaming.
-        ERRORS_FOUND = True
-        prefix = ""
-        if clean_dict['out_string'][:1] == '.':
-            prefix = '.'
-            clean_dict['out_string'] = clean_dict['out_string'][1:]
-        #Separate filename from extension:
-        clean_split = clean_dict['out_string'].split('.')
-        #For files and directories which were only composed of illegal characters, rename these 'Renamed file' or 'Renamed Folder'
-        if clean_split[0].strip() == '':
-            if obj_type == 'file':
-                clean_dict['out_string'] = 'Renamed File' + clean_dict['out_string'][len(clean_split[0]):]
-            elif obj_type == 'dir':
-                clean_dict['out_string'] = 'Renamed Folder'
-        #Replace any previously removed periods
-        clean_dict['out_string'] = prefix + clean_dict['out_string']
-        clean_path = os.path.join(path, clean_dict['out_string'])
-        #If the clean path already exists, append '(n)' to the filename
-        if os.path.exists(clean_path) or clean_path in SANITISED_LIST:
-            clean_path = swisspy.append_index(clean_split[0], clean_dict['out_string'][len(clean_split[0]):], path)
-        #Set the newly constructed path as the clean path to use
-        clean_dict['out_string'] = clean_path
-        rename_file(clean_dict, full_path, rename_log_file, RENAME)
-    # If the cleaned and original versions are the same, check that there's no
-    # case clash with a previously seen file
-    else:
-        if CASE_SENS:
-            extension = ""
-            if full_path.lower() in L_CASE_LIST:
-                filename = full_path.split('/')[-1]
-                if "." in filename:
-                    extension = "." + filename.split(".")[-1]
-                    filename = filename[:-len(extension)]
-                clean_path = swisspy.append_index(filename, extension, path)
-                rename_file(clean_dict, full_path, rename_log_file, RENAME)
-
-    # Append the clean (i.e final) path to the array which will allow us to
-    # check for case sensitive clashes, if the case sensitive option is set.
-    if CASE_SENS:
-        L_CASE_LIST.append(clean_path.lower())
-    if OVERSIZE_LOG_FILE_NAME is not None:
-        if len(full_path) > 254:
-            if not QUIET:
-                print swisspy.time_stamp() + "--WARNING-- Overlong directory found: " + clean_path + \
-                      " is " + str(len(clean_path)) + " characters long.\n"
-            if OVERSIZE_LOG_FILE_NAME is not None:
-                oversize_file.write(swisspy.time_stamp() + "Oversize directory: " + clean_path + "\n")
-                oversize_file.write(str(len(clean_path)) + " characters long.\n\n")
 
 def sanitise(in_string, strip_trailing_spaces=True):
     """Remove any occurrences of characters found in black_list from theString,
@@ -712,7 +646,7 @@ class Sanitisation:
         # Attributes with set initial values
         self.error_list = []
         self.errors_found = False
-        self.l_case_list = []
+        self.l_case_list = [] #See Sanitise
         self.log_files = []
         self.old_path = ''
         self.sanitised_list = []
@@ -780,108 +714,168 @@ class Sanitisation:
                 pf.write(str(os.getpid()))
             atexit.register(clean_up, pid_file=pid_file, log_file=self.log_file)
 
+        def rename_to_clean(self, obj, path, obj_type, rename_log_file):
+            """If path contains any forbidden characters, sanitise it and rename it.
 
+            obj : str
+                Name of the file or directory object to be sanitised.
+            path : str : path
+                Basename to obj - path at which it is located.
+            obj_type : str : 'file', 'dir'
+                The type of the object to be sanitised ('file' or 'dir')
+            rename_log_file : str : path
+                Path to the file in which to log renamed objects.
+
+            """
+            full_path = os.path.join(path, obj)
+            clean_path = full_path
+            clean_dict = sanitise(obj)
+
+            #If sanitising made any difference, there will be entries in subMade
+            if clean_dict['subs_made']:
+                #Check for strings prefixed with '.', remove this character, and replace it after file renaming.
+                self.errors_found = True
+                prefix = ""
+                if clean_dict['out_string'][:1] == '.':
+                    prefix = '.'
+                    clean_dict['out_string'] = clean_dict['out_string'][1:]
+                #Separate filename from extension:
+                clean_split = clean_dict['out_string'].split('.')
+                #For files and directories which were only composed of illegal characters, rename these 'Renamed file' or 'Renamed Folder'
+                if clean_split[0].strip() == '':
+                    if obj_type == 'file':
+                        clean_dict['out_string'] = 'Renamed File' + clean_dict['out_string'][len(clean_split[0]):]
+                    elif obj_type == 'dir':
+                        clean_dict['out_string'] = 'Renamed Folder'
+                #Replace any previously removed periods
+                clean_dict['out_string'] = prefix + clean_dict['out_string']
+                clean_path = os.path.join(path, clean_dict['out_string'])
+                #If the clean path already exists, append '(n)' to the filename
+                if os.path.exists(clean_path) or \
+                clean_path in self.sanitised_list:
+                    clean_path = swisspy.append_index(clean_split[0],
+                                                      clean_dict['out_string'][len(clean_split[0]):],
+                                                      path)
+                #Set the newly constructed path as the clean path to use
+                clean_dict['out_string'] = clean_path
+                rename_file(clean_dict, full_path, rename_log_file,
+                            self.rename)
+            # If the cleaned and original versions are the same, check that there's no
+            # case clash with a previously seen file
+            else:
+                if self.case_sens:
+                    extension = ""
+                    if full_path.lower() in self.l_case_list:
+                        filename = full_path.split('/')[-1]
+                        if "." in filename:
+                            extension = "." + filename.split(".")[-1]
+                            filename = filename[:-len(extension)]
+                        clean_path = swisspy.append_index(filename, extension, path)
+                        rename_file(clean_dict, full_path, rename_log_file, self.rename)
+
+            # Append the clean (i.e final) path to the array which will allow us to
+            # check for case sensitive clashes, if the case sensitive option is set.
+            if self.case_sens:
+                self.l_case_list.append(clean_path.lower())
+            if self.oversize_log_file_name is not None:
+                if len(full_path) > 254:
+                    log_to = self.log_files
+                    log_to.append(self.oversize_log_file_name)
+                    swisspy.print_and_log("Overlong directory found: {} is {}"
+                                          " characters long.\n".format(clean_path,
+                                                                       str(len(clean_path))),
+                                          [log_to], quiet=self.quiet)
 def main_process(s):
     """ Call the requisite functions of s, a Sanitisation object"""
+    s = Sanitisation() # REMOVE THIS
 
     #Write a pid file
     if not s.debug:
         s.write_pid()
 
-
-
-
-def main():
-
-    #Any files which we would like to remove on scanning
-    files_to_delete = ['._.DS_Store', '.DS_Store']
-
-    #MAIN FUNCTION:
-    for folder in swisspy.immediate_subdirs(TO_ARCHIVE_DIR):
+    for folder in swisspy.immediate_subdirs(s.to_archive_dir):
         deleted_files = []
-
-        if RENAME:
-            if not RENAME_LOG_DIR:
-                swisspy.print_and_log("Please specify a directory to log renamed" +\
-                                  " files to (usually on dest.)",
-                                  LOG_FILES, quiet=QUIET)
+        if s.rename:
+            if not s.rename_log_dir:
+                swisspy.print_and_log("Please specify a directory to log "
+                                      "renamed files to (usually on dest.)",
+                                      s.log_files, quiet=s.quiet)
                 sys.exit(1)
-
-            rename_log_file = os.path.join(RENAME_LOG_DIR, folder + ".txt")
+            rename_log_file = os.path.join(s.rename_log_dir, folder + ".txt")
         else:
             rename_log_file = ""
-
-        folder_start_path = os.path.join(TO_ARCHIVE_DIR, folder)
+        folder_start_path = os.path.join(s.to_archive_dir, folder)
         #Check the directory to be copied isn't still being written to:
         if swisspy.dir_being_written_to(folder_start_path):
-                swisspy.print_and_log(folder + " is being written to. Skipping this time.",
-                                  [TEMP_LOG_FILE], ts="long", quiet=QUIET)
+                swisspy.print_and_log(folder + " is being written to. "
+                                               "Skipping this time.",
+                                  [s.temp_log_file], ts="long", quiet=s.quiet)
                 continue
-        log_folder = os.path.join(ILLEGAL_LOG_DIR, folder)
+        log_folder = os.path.join(s.illegal_log_dir, folder)
         if not os.path.exists(log_folder):
             os.mkdir(log_folder)
-
-        log_path =  os.path.abspath(os.path.join(log_folder, swisspy.time_stamp('short') + ".log"))
-        #A list of files to be logged to
-        LOG_FILES = [log_path[:259]] #Limit folder names to shorter than 260 chars
-
-        swisspy.print_and_log("Processing " + folder + "\n", LOG_FILES, quiet=QUIET)
-
-        #Move everything to the hidden folder, unless it's already there, in which case move it to Problem Files
-        if folder in swisspy.immediate_subdirs(THE_ROOT):
-            move_to = os.path.join(PROBLEM_DIR, folder)
+        log_path =  os.path.join(log_folder,
+                                 swisspy.time_stamp('short') + ".log")
+        #A list of <260 char files to be logged to
+        s.log_files = [log_path[:259]]
+        swisspy.print_and_log("Processing " + folder + "\n",
+                              s.log_files, quiet=s.quiet)
+        # Move everything to the hidden folder, unless it's already there,
+        # in which case move it to Problem Files
+        if folder in swisspy.immediate_subdirs(s.the_root):
+            move_to = os.path.join(s.problem_dir, folder)
             swisspy.print_and_log(str(folder) + " is already being processed."
                                   "It has been moved to " + move_to,
-                                  LOG_FILES, quiet=QUIET)
+                                  s.log_files, quiet=s.quiet)
             shutil.move(folder_start_path, move_to)
             continue
         else:
-            shutil.move(folder_start_path, os.path.join(THE_ROOT,folder))
+            shutil.move(folder_start_path, os.path.join(s.the_root,folder))
 
         #Sanitise the directory itself, and update 'folder' if a change is made
-        rename_to_clean(folder, THE_ROOT, 'dir', rename_log_file)
+        rename_to_clean(folder, s.the_root, 'dir', rename_log_file)
         if sanitise(folder)['out_string'] != folder:
             folder = sanitise(folder)['out_string']
-        target_path = os.path.join(THE_ROOT, folder)
+        target_path = os.path.join(s.the_root, folder)
         ERRORS_FOUND = False
 
-        for the_path, the_dirs, the_files in os.walk(target_path, topdown=False):
+        for path, dirs, files in os.walk(target_path, topdown=False):
             #Sanitise file names
-            for f in the_files:
-                rename_to_clean(f, the_path, 'file', rename_log_file)
-                if f in files_to_delete:
-                    full_path = os.path.join(the_path,f)
+            for f in files:
+                rename_to_clean(f, path, 'file', rename_log_file)
+                if f in s.files_to_delete:
+                    full_path = os.path.join(path,f)
                     try:
                         os.remove(full_path)
                         deleted_files.append(f)
                     except Exception as e:
                         swisspy.print_and_log("Unable to remove file " + f + '\n' +\
                                              "Error details: " + str(e) + '\n',
-                                             LOG_FILES, quiet=QUIET)
+                                             s.log_files, quiet=s.quiet)
             #Sanitise directory names
-            for d in the_dirs:
-                rename_to_clean(d, the_path, 'dir', rename_log_file)
+            for d in dirs:
+                rename_to_clean(d, path, 'dir', rename_log_file)
 
 
         if not ERRORS_FOUND or RENAME:
             passFolder = os.path.join(PASS_DIR, folder)
             swisspy.print_and_log("Finished sanitising " + str(folder) +\
                               ". Moving to " + PASS_DIR + "\n",
-                              LOG_FILES, quiet=QUIET)
+                              s.log_files, quiet=s.quiet)
             move_and_merge(target_path, passFolder)
 
         else:
             try:
-                shutil.move(target_path, PROBLEM_DIR)
+                shutil.move(target_path, s.problem_dir)
                 swisspy.print_and_log ("{} has been moved to" \
-                                   "{}.\n".format(folder, PROBLEM_DIR),
-                                   LOG_FILES, quiet=QUIET)
+                                   "{}.\n".format(folder, s.problem_dir),
+                                   s.log_files, quiet=s.quiet)
 
             except shutil.Error as e:
-                swisspy.print_and_log ("Unable to move " + folder + " to " + PROBLEM_DIR + " - it may already exist in that location.\n" +\
+                swisspy.print_and_log ("Unable to move " + folder + " to " + s.problem_dir + " - it may already exist in that location.\n" +\
                                    "If you need to archive a changed version of this file, please rename it appropriately and retry.\n" +\
                                    "Error: " + str(e) + ")\n",
-                                   LOG_FILES, quiet=QUIET)
+                                   s.log_files, quiet=s.quiet)
 
 if __name__ == '__main__':
     try:
