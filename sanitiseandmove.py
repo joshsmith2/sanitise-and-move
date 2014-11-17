@@ -682,7 +682,7 @@ class Sanitisation:
                  logstash_dir=None, oversize_log_file_name=None, quiet=False,
                  rename=False, rename_log_dir=None,
                  temp_log_file="/tmp/saniTempLog.log",
-                 target='.'):
+                 target='.', files_to_delete=['.DS_Store, ._.DS_Store']):
 
         self.target = target
 
@@ -693,6 +693,19 @@ class Sanitisation:
                 'hidden': os.path.join(self.target, ".Hidden"),
                 'pass': os.path.join(self.target, "Passed_For_Archive"), # TODO: Really?
                  }
+
+        #Define logstash files
+        if self.logstash_dir:
+            logstash_files = {'renamed':'renamed.txt',
+                             'transferred':'transferred.txt',
+                             'there_and_different':'there_and_different.txt',
+                             'there_but_same':'there_but_same.txt',
+                             'failed':'failed.txt',
+                             'removed':'removed.txt',
+                             'transfer_error':'transfer_errors.txt',}
+            for lf in logstash_files:
+                logstash_files[lf] = os.path.join(self.logstash_dir,
+                                                  logstash_files[lf])
 
         #TODO: Variable descriptions
 
@@ -711,6 +724,7 @@ class Sanitisation:
         self.to_archive_dir = dirs['to_archive']
         self.transfer_error_dir = os.path.join(self.problem_dir,
                                                "_Transfer_Errors")
+        self.files_to_delete = files_to_delete
 
         # Switches
         self.case_sens = case_sens
@@ -740,19 +754,21 @@ class Sanitisation:
             """Write PID file to prevent multiple syncronously running
             instances of the program.
             """
-            pid_file = "/tmp/SanitisePaths" + dir_id + ".pid"
+            pid_file = "/tmp/SanitisePaths" + self.dir_id + ".pid"
             if os.path.isfile(pid_file):
                 with open(pid_file, 'r') as pf:
                     existing_pid = pf.read()
                     try:
                         if swisspy.check_pid(existing_pid):
-                            swisspy.print_and_log("Process with pid " + existing_pid + \
-                                                  " is currently running. Exiting now.\n",
-                                                  [self.temp_log_file], ts='long', quiet=False)
+                            message = "Process with pid " + existing_pid + \
+                                      " is currently running. Exiting now.\n"
+                            swisspy.print_and_log(message, [self.temp_log_file],
+                                                  ts='long', quiet=False)
                             sys.exit()
                         else:
                             swisspy.print_and_log("Removing stale pidfile\n",
-                                                  [self.temp_log_file], ts='long', quiet=False)
+                                                  [self.temp_log_file],
+                                                  ts='long', quiet=False)
                             os.remove(pid_file)
                     except OSError as e:
                         swisspy.print_and_log("Process could not be checked. Error: " + \
@@ -767,26 +783,15 @@ class Sanitisation:
 
 def main_process(s):
     """ Call the requisite functions of s, a Sanitisation object"""
+
+    #Write a pid file
     if not s.debug:
         s.write_pid()
 
-#Write a pid file
 
-#Define logstash files
-if LOGSTASH_DIR:
-    logstash_files = {'renamed':'renamed.txt',
-                     'transferred':'transferred.txt',
-                     'there_and_different':'there_and_different.txt',
-                     'there_but_same':'there_but_same.txt',
-                     'failed':'failed.txt',
-                     'removed':'removed.txt',
-                     'transfer_error':'transfer_errors.txt',}
-    for lf in logstash_files:
-        logstash_files[lf] = os.path.join(LOGSTASH_DIR,logstash_files[lf])
+
 
 def main():
-    global ERRORS_FOUND
-    global LOG_FILES
 
     #Any files which we would like to remove on scanning
     files_to_delete = ['._.DS_Store', '.DS_Store']
