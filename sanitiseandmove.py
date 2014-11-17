@@ -398,34 +398,7 @@ def sanitise(in_string, strip_trailing_spaces=True):
             positions.append(len(in_string) - r - 1)
     return {'out_string':out_string, 'subs_made':subs_made, 'positions':positions}
 
-def write_pid(dir_id):
-    """Write PID file to prevent multiple syncronously running instances of the
-    program.
 
-    """
-    pid_file = "/tmp/SanitisePaths" + dir_id + ".pid"
-    if os.path.isfile(pid_file):
-        with open(pid_file, 'r') as pf:
-            existing_pid = pf.read()
-            try:
-                if swisspy.check_pid(existing_pid):
-                    swisspy.print_and_log("Process with pid " + existing_pid +\
-                                      " is currently running. Exiting now.\n",
-                                      [TEMP_LOG_FILE], ts='long', quiet=False)
-                    sys.exit()
-                else:
-                    swisspy.print_and_log("Removing stale pidfile\n",
-                                      [TEMP_LOG_FILE], ts='long', quiet=False)
-                    os.remove(pid_file)
-            except OSError as e:
-                swisspy.print_and_log("Process could not be checked. Error: " +\
-                                  str(e) + "\n",
-                                  [TEMP_LOG_FILE], ts='long', quiet=False)
-
-    else:
-        pf = open(pid_file, 'w')
-        pf.write(str(os.getpid()))
-    atexit.register(clean_up, pid_file=pid_file, log_file=LOG_FILE)
 
 def get_arguments():
     """Return command line arguments from argparse"""
@@ -757,19 +730,47 @@ class Sanitisation:
         # Silly duplications. TODO: Get rid of these.
         self.the_root = self.hidden_dir
 
+        #Create a sanitised, short dir_id for use in log and PID files
+        self.dir_id = self.target[:256]
+        for c in ["/", "\\", " "]:
+            if c in self.dir_id:
+                self.dir_id = self.dir_id.replace(c,"")
+
+        def write_pid(self):
+            """Write PID file to prevent multiple syncronously running
+            instances of the program.
+            """
+            pid_file = "/tmp/SanitisePaths" + dir_id + ".pid"
+            if os.path.isfile(pid_file):
+                with open(pid_file, 'r') as pf:
+                    existing_pid = pf.read()
+                    try:
+                        if swisspy.check_pid(existing_pid):
+                            swisspy.print_and_log("Process with pid " + existing_pid + \
+                                                  " is currently running. Exiting now.\n",
+                                                  [self.temp_log_file], ts='long', quiet=False)
+                            sys.exit()
+                        else:
+                            swisspy.print_and_log("Removing stale pidfile\n",
+                                                  [self.temp_log_file], ts='long', quiet=False)
+                            os.remove(pid_file)
+                    except OSError as e:
+                        swisspy.print_and_log("Process could not be checked. Error: " + \
+                                              str(e) + "\n",
+                                              [self.temp_log_file], ts='long', quiet=False)
+
+            else:
+                pf = open(pid_file, 'w')
+                pf.write(str(os.getpid()))
+            atexit.register(clean_up, pid_file=pid_file, log_file=self.log_file)
+
 
 def main_process(s):
-
-
-#Construct a directory id for use in PID and log files
-dir_id = TARGET[:259]
-for c in ["/","\\"," "]:
-    if c in dir_id:
-        dir_id = dir_id.replace(c,"")
+    """ Call the requisite functions of s, a Sanitisation object"""
+    if not s.debug:
+        s.write_pid()
 
 #Write a pid file
-if not DEBUG:
-    write_pid(dir_id)
 
 #Define logstash files
 if LOGSTASH_DIR:
