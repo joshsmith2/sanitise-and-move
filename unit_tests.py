@@ -12,9 +12,8 @@ class ObjectTest(unittest.TestCase):
         pass
 
     def test_can_create_sanitise_object_with_correct_defaults(self):
-        test_object = Sanitisation()
+        test_object = Sanitisation("/tmp")
         self.assertTrue(test_object.case_sens == False)
-
 
 if __name__ == '__main__':
     unittest.main(exit=False)

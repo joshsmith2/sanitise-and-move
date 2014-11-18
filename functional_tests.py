@@ -31,18 +31,18 @@ class FileTransferTest(unittest.TestCase):
         self.source_subfolders = ['.Hidden', 'To Archive', 'Problem Files', 'Logs']
         self.log_subfolders = ['syslogs','renamed']
 
-        self.root_script_dir = os.path.dirname(self.current_dir)
+        self.root_script_dir = self.current_dir
         self.command_path = os.path.abspath(os.path.join(self.root_script_dir,
-                                                    'sanitise-and-move.py'
+                                                         'sanitiseandmove.py'
         ))
 
         #Construct a list to run the sanitisePaths command using Popen
         self.minimal_command = [self.command_path,
-                           '-q',
-                           '-t', self.source,
-                           '-p', self.dest,
-                           '-r', os.path.join(self.log,'renamed'),
-                           '-l', os.path.join(self.log, 'syslogs'),]
+                               '-q',
+                               '-t', self.source,
+                               '-p', self.dest,
+                               '-r', os.path.join(self.log,'renamed'),
+                               '-l', os.path.join(self.log, 'syslogs'),]
         self.rename_command = self.minimal_command[:]
         self.rename_command.append('-d')
 
