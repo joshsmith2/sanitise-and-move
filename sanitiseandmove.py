@@ -156,7 +156,7 @@ def sanitise(in_string, strip_trailing_spaces=True):
                 subs_made.add(char)
                 positions.append(n)
                 to_append = replace_out
-        if char in strip_from_end:
+        if to_append in strip_from_end:
             strip_count += 1
             strip_chars_found.append(char)
         else:
@@ -222,7 +222,8 @@ class Sanitisation:
                  logstash_dir='/var/log/sanitisePathsSysLogs', oversize_log_file_name=None, quiet=False,
                  rename=False, rename_log_dir=None,
                  temp_log_file="/tmp/saniTempLog.log",
-                 target='.', files_to_delete=['.DS_Store, ._.DS_Store']):
+                 target='.', files_to_delete=['.DS_Store, ._.DS_Store'],
+                 test_suite=False):
 
         self.target = target
 
@@ -269,6 +270,7 @@ class Sanitisation:
         self.case_sens = case_sens
         self.quiet = quiet
         self.rename = rename
+        self.test_suite = test_suite
 
         # Paths - e.g to log files
         self.error_log_file_name = error_log_file_name
@@ -292,50 +294,24 @@ class Sanitisation:
         for c in ["/", "\\", " "]:
             if c in self.dir_id:
                 self.dir_id = self.dir_id.replace(c,"")
+        self.pid_file = "/tmp/SanitisePaths" + self.dir_id + ".pid"
 
-    def clean_up(self, pid_file, log_file):
+        # Register functions to run on exit
+        atexit.register(self.clean_up)
+
+
+    def clean_up(self):
         """Run some cleanup tasks on unexpected exit"""
-        self.purge_hidden_dir()
         #Close pid files, if they exist
         try:
-            os.remove(pid_file)
+            self.purge_hidden_dir()
+            os.remove(self.pid_file)
         except OSError as e:
             if e.errno == 2:
                 #Pidfile doesn't exist.
                 pass
             else:
                 raise
-
-    def write_pid(self):
-        """Write PID file to prevent multiple syncronously running
-        instances of the program.
-        """
-        pid_file = "/tmp/SanitisePaths" + self.dir_id + ".pid"
-        if os.path.isfile(pid_file):
-            with open(pid_file, 'r') as pf:
-                existing_pid = pf.read()
-                try:
-                    if swisspy.check_pid(existing_pid):
-                        message = "Process with pid " + existing_pid + \
-                                  " is currently running. Exiting now.\n"
-                        swisspy.print_and_log(message, [self.temp_log_file],
-                                              ts='long', quiet=False)
-                        sys.exit()
-                    else:
-                        swisspy.print_and_log("Removing stale pidfile\n",
-                                              [self.temp_log_file],
-                                              ts='long', quiet=False)
-                        os.remove(pid_file)
-                except OSError as e:
-                    swisspy.print_and_log("Process could not be checked. Error: " + \
-                                          str(e) + "\n",
-                                          [self.temp_log_file], ts='long', quiet=False)
-
-        else:
-            pf = open(pid_file, 'w')
-            pf.write(str(os.getpid()))
-        atexit.register(self.clean_up, pid_file=pid_file,
-                        log_file=self.log_file)
 
     def rename_to_clean(self, obj, path, obj_type, rename_log_file):
         """If path contains any forbidden characters, sanitise it and rename it.
@@ -718,10 +694,10 @@ class Sanitisation:
         """Renames a file, or logs its abberations
 
         path_dict : dict
-            A dictionary as output by sanitise():
-            {'result': The sanitised string,
-             'subs_made': Any characters which were removed or substituted
-             'positions': the positions of the chars in subs_made}
+            A dictionary as output by sanitise(), with the following structure:
+                {'result': The sanitised string,
+                 'subs_made': Any characters which were removed or substituted
+                 'positions': the positions of the chars in subs_made}
         prev_path : str : path
             The original path to the file
         rename : bool
@@ -801,10 +777,40 @@ class Sanitisation:
             to_remove = self.hidden_dir
         return [f[len(to_remove):] for f in from_list]
 
+    def write_pid(self):
+        """Write PID file to prevent multiple syncronously running
+        instances of the program.
+        """
+        if os.path.isfile(self.pid_file):
+            with open(self.pid_file, 'r') as pf:
+                existing_pid = pf.read()
+                try:
+                    if swisspy.check_pid(existing_pid):
+                        message = "Process with pid " + existing_pid + \
+                                  " is currently running. Exiting now.\n"
+                        swisspy.print_and_log(message, [self.temp_log_file],
+                                              ts='long', quiet=False)
+                        sys.exit()
+                    else:
+                        swisspy.print_and_log("Removing stale pidfile\n",
+                                              [self.temp_log_file],
+                                              ts='long', quiet=False)
+                        os.remove(self.pid_file)
+                except OSError as e:
+                    swisspy.print_and_log("Process could not be checked. Error: " + \
+                                          str(e) + "\n",
+                                          [self.temp_log_file], ts='long', quiet=False)
+
+        else:
+            pf = open(self.pid_file, 'w')
+            pf.write(str(os.getpid()))
+
+
 def main(s):
     """ Call the requisite functions of s, a Sanitisation object"""
     #Write a pid file
-    s.write_pid()
+    if not s.test_suite:
+        s.write_pid()
 
     for folder in swisspy.immediate_subdirs(s.to_archive_dir):
         deleted_files = []

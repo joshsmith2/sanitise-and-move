@@ -3,10 +3,7 @@
 import unittest
 import os
 import inspect
-import shutil
-import subprocess as sp
-import swisspy
-
+from sanitiseandmove import *
 
 class FileTransferTest(unittest.TestCase):
 
@@ -17,7 +14,7 @@ class FileTransferTest(unittest.TestCase):
         self.test_dir = os.path.join(self.current_dir, 'tests')
 
         # A dictionary containing all paths which need to be created for the test
-        self.source_dir_name = './test_source'
+        self.source_dir_name = 'test_source'
         self.dest_dir_name = 'test_dest'
         self.log_dir_name = 'test_logs'
 
@@ -36,14 +33,16 @@ class FileTransferTest(unittest.TestCase):
         self.command_path = os.path.abspath(os.path.join(self.root_script_dir,
                                                          'sanitiseandmove.py'
         ))
+        self.rename_log_dir = os.path.join(self.log, 'renamed')
+        self.syslog_dir = os.path.join(self.log, 'syslogs')
 
         #Construct a list to run the sanitisePaths command using Popen
         self.minimal_command = [self.command_path,
                                '-q',
                                '-t', self.source,
                                '-p', self.dest,
-                               '-r', os.path.join(self.log,'renamed'),
-                               '-l', os.path.join(self.log, 'syslogs'),]
+                               '-r', self.rename_log_dir,
+                               '-l', self.syslog_dir,]
         self.rename_command = self.minimal_command[:]
         self.rename_command.append('-d')
 
@@ -77,6 +76,17 @@ class FileTransferTest(unittest.TestCase):
         self.get_log_contents(folder)
         for m in messages:
             self.assertIn(m, '\n'.join(self.log_contents))
+
+    def minimal_object(self):
+        """Create and return a sanitisation object which will work, with
+        minimal, default arguments."""
+        return Sanitisation(self.dest,
+                            target=self.source,
+                            rename_log_dir=self.rename_log_dir,
+                            logstash_dir = self.syslog_dir,
+                            rename=True,
+                            test_suite=True,
+                            )
 
     def in_problem_files(self, folder):
         folder_in_pf = False
@@ -159,7 +169,8 @@ class FileTransferTest(unittest.TestCase):
                               'To Archive',
                               'empty_container'))
 
-        sp.call(self.minimal_command)
+        s = self.minimal_object()
+        main(s)
 
         test_file_after = os.path.join(self.dest, 'full_container', 'test_file')
         observed_md5 = swisspy.get_md5(test_file_after)
@@ -233,7 +244,8 @@ class FileTransferTest(unittest.TestCase):
         for bsd in bad_sub_dirs:
             os.mkdir(bsd)
 
-        sp.call(self.rename_command)
+        s = self.minimal_object()
+        main(s)
 
         self.assertFalse(self.in_problem_files('bad'))
         self.assertTrue(self.in_dest('bad'))
@@ -258,20 +270,15 @@ class FileTransferTest(unittest.TestCase):
         swisspy.make_file(spaces_dir, 'file with trailing spaces   ')
         os.mkdir(os.path.join(spaces_dir, 'dir with trailing space '))
 
-        sp.call(self.rename_command)
+        s = self.minimal_object()
+        main(s)
 
         self.assertTrue(self.in_dest('spaces'))
         changed = ['file with trailing space', 'file with trailing spaces',
                    'dir with trailing space']
-        changed_paths = [os.path.join('spaces', c) for c in changed]
+        changed_paths = [os.path.join(self.dest, 'spaces', c) for c in changed]
         for c in changed_paths:
             self.assertTrue(os.path.exists(c), c + " does not exist")
-
-
-
-
-
-
 
     # Delete .DS_Store files
 
