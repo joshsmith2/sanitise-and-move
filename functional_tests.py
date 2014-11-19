@@ -14,18 +14,19 @@ class FileTransferTest(unittest.TestCase):
         # Variables
         self.current_path = os.path.abspath(inspect.stack()[0][1])
         self.current_dir = os.path.dirname(self.current_path)
+        self.test_dir = os.path.join(self.current_dir, 'tests')
 
         # A dictionary containing all paths which need to be created for the test
-        self.source_dir_name = 'test_source/'
-        self.dest_dir_name = 'test_dest/'
-        self.log_dir_name = 'test_logs/'
+        self.source_dir_name = './test_source'
+        self.dest_dir_name = 'test_dest'
+        self.log_dir_name = 'test_logs'
 
-        self.source = os.path.join(self.current_dir, self.source_dir_name)
+        self.source = os.path.join(self.test_dir, self.source_dir_name)
 
-        self.dest = os.path.join(self.current_dir, self.dest_dir_name) # Local
+        self.dest = os.path.join(self.test_dir, self.dest_dir_name) # Local
         #self.dest = os.path.join("/Volumes/HGSL-Archive/josh_test/",
         #                         self.dest_dir_name)
-        self.log = os.path.join(self.current_dir, self.log_dir_name)
+        self.log = os.path.join(self.test_dir, self.log_dir_name)
         self.rootdirs = [self.source, self.log, self.dest]
 
         self.source_subfolders = ['.Hidden', 'To Archive', 'Problem Files', 'Logs']
@@ -144,7 +145,7 @@ class FileTransferTest(unittest.TestCase):
                                       'To Archive',
                                       'full_container')
         os.mkdir(full_container)
-        test_file_source = os.path.join(self.current_dir, 'test_file')
+        test_file_source = os.path.join(self.test_dir, 'test_file')
         test_file_dest = os.path.join(self.source,
                                       'To Archive',
                                       'full_container',
@@ -173,7 +174,7 @@ class FileTransferTest(unittest.TestCase):
                                      'To Archive',
                                      'same_file')
         os.mkdir(same_file_dir)
-        test_file_source = os.path.join(self.current_dir, 'test_file')
+        test_file_source = os.path.join(self.test_dir, 'test_file')
         test_file_dest = os.path.join(self.dest, 'same_file')
 
         shutil.copy(test_file_source, same_file_dir)
