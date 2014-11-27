@@ -75,7 +75,7 @@ class FileTransferTest(unittest.TestCase):
     def check_in_logs(self, folder, messages):
         self.get_log_contents(folder)
         for m in messages:
-            self.assertIn(m, '\n'.join(self.log_contents))
+            self.assertTrue(m in '\n'.join(self.log_contents))
 
     def minimal_object(self):
         """Create and return a sanitisation object which will work, with

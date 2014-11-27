@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/env python2.6
 """
 Search for characters in filenames which are illegal in Windows. Either log or
 remove these.
@@ -20,7 +20,6 @@ Contact: joshsmith2@gmail.com
 #TODO: Change the_root to hidden?
 
 import atexit
-import getopt
 import os
 import os.path
 import shutil
@@ -381,7 +380,7 @@ class Sanitisation:
             if len(full_path) > 254:
                 log_to = self.log_files
                 log_to.append(self.oversize_log_file_name)
-                swisspy.print_and_log("Overlong directory found: {} is {}"
+                swisspy.print_and_log("Overlong directory found: {0} is {1}"
                                       " characters long.\n".format(clean_path,
                                                                    str(len(clean_path))),
                                       [log_to], quiet=self.quiet)
@@ -411,16 +410,16 @@ class Sanitisation:
         if not os.path.exists(dest):
             try:
                 shutil.move(source, dest)
-                msg = "No errors found in new folder {}. Folder moved to" \
-                      "{}\n".format(source_to_log, dest)
+                msg = "No errors found in new folder {0}. Folder moved to" \
+                      "{1}\n".format(source_to_log, dest)
 
                 swisspy.print_and_log(msg, self.log_files,
                                       quiet=self.quiet)
             except shutil.Error as e:
                 self.error_list.append(e)
-                msg = "One or more files failed while trying to move {} " \
-                      "to {}. This folder has been moved to {}.\n" \
-                      "Error:\n {}".format(source_to_log, dest,
+                msg = "One or more files failed while trying to move {0} " \
+                      "to {1}. This folder has been moved to {2}.\n" \
+                      "Error:\n {3}".format(source_to_log, dest,
                                            self.problem_dir, e)
                 swisspy.print_and_log(msg, self.log_files, quiet=self.quiet)
             #Walk to get list of files moved
@@ -483,12 +482,12 @@ class Sanitisation:
                     file_no += 1
                     #edf is a tuple of source and dest files, so:
                     for f in edf:
-                        file_report = "\n\t{}:".format(f.path)
+                        file_report = "\n\t{0}:".format(f.path)
                         for attr_name in ['size','m_time','md5']:
                             attr_value = getattr(f,attr_name)
                             if attr_value:
-                                file_report += "\n\t{}: {}".format(attr_name,
-                                                                   attr_value)
+                                file_report += "\n\t{0}: {1}".format(attr_name,
+                                                                     attr_value)
                         file_reports.append(file_report)
                     file_reports.append("\n")
                 log_list("Unable to move {0}. The following {1} files "
@@ -538,7 +537,7 @@ class Sanitisation:
             abiding_sources = all_sources
 
             for i in range(retry):
-                msg = "\nTry no. {}: Retrying files\n\t{}" \
+                msg = "\nTry no. {0}: Retrying files\n\t{1}" \
                       "\n".format(str(i + 1),
                                   '\n\t'.join(self.strip_hidden(abiding_sources,
                                                                 prefix)))
@@ -549,7 +548,7 @@ class Sanitisation:
                     abiding_errors = retry_errors
                     abiding_sources = [e[0] for e in abiding_errors]
                 else:
-                    msg = "Transfer of files\n\t{}\ncompleted on try{}." \
+                    msg = "Transfer of files\n\t{0}\ncompleted on try{1}." \
                           "\n".format('\n\t'.join(all_sources),
                                       str(i + 1))
                     swisspy.print_and_log(msg, self.log_files,
@@ -618,7 +617,7 @@ class Sanitisation:
                     empty_dirs.append(root)
                     os.rmdir(root)
                 swisspy.print_and_log("Removed the following "
-                                      "empty directories:\n\t{}\n"
+                                      "empty directories:\n\t{0}\n"
                                       "".format('\n\t'.join(self.strip_hidden(empty_dirs,
                                                                               prefix))))
 
@@ -632,7 +631,7 @@ class Sanitisation:
                                         "Duplicates_" + swisspy.time_stamp('short'))
                 os.mkdir(moved_to)
                 # Removed 'try' here
-                msg = "{} has been moved to {}/{}.\nPlease move or delete " \
+                msg = "{0} has been moved to {1}/{2}.\nPlease move or delete " \
                       "the folder from this lovcation once it is no longer " \
                       "required.\n".format(o, moved_to, o)
                 swisspy.print_and_log(msg, self.log_files, quiet=self.quiet)
@@ -641,8 +640,8 @@ class Sanitisation:
             try:
                 shutil.move(os.path.join(self.hidden_dir, o), moved_to)
             except OSError as e:
-                msg = "The following error occurred when moving {}/{}:" \
-                      "{}".format(self.hidden_dir, o, e)
+                msg = "The following error occurred when moving {0}/{1}:" \
+                      "{2}".format(self.hidden_dir, o, e)
                 swisspy.print_and_log(msg, self.log_files, quiet=self.quiet)
 
     def retry_transfer(self, src,dest,errors):
@@ -661,7 +660,7 @@ class Sanitisation:
                                       "\nError: " + str(e) + "\n",
                                       self.log_files, quiet=self.quiet)
                 else:
-                    msg = "File does not exist at {} or {}.\nError:{}\n" \
+                    msg = "File does not exist at {0} or {1}.\nError:{2}\n" \
                           "".format(src, dest, e)
                     swisspy.print_and_log(msg, self.log_files,
                                           quiet=self.quiet)
@@ -733,7 +732,7 @@ class Sanitisation:
                 if rename_log_file:
                     change_log_files.append(rename_log_file)
 
-                msg = "Changed from: {}\nChanged to:   {}\n\n" \
+                msg = "Changed from: {0}\nChanged to:   {1}\n\n" \
                       "".format(path_to_log, new_path_to_log)
                 swisspy.print_and_log(msg, change_log_files,
                                       ts=None, quiet=self.quiet)
@@ -868,8 +867,8 @@ def main(s):
                         os.remove(full_path)
                         deleted_files.append(f)
                     except Exception as e:
-                        msg = "Unable to remove file {} \n " \
-                              "Error details: {}\n".format(f, str(e))
+                        msg = "Unable to remove file {0} \n " \
+                              "Error details: {1}\n".format(f, str(e))
                         swisspy.print_and_log(msg, s.log_files, quiet=s.quiet)
             #Sanitise directory names
             for d in dirs:
@@ -877,23 +876,23 @@ def main(s):
 
         if not s.errors_found or s.rename:
             passFolder = os.path.join(s.pass_dir, folder)
-            msg = "Finished sanitising {}. Moving to {}\n".format(folder,
-                                                                  s.pass_dir)
+            msg = "Finished sanitising {0}. Moving to {1}\n".format(folder,
+                                                                    s.pass_dir)
             swisspy.print_and_log(msg, s.log_files, quiet=s.quiet)
             s.move_and_merge(target_path, passFolder)
 
         else:
             try:
                 shutil.move(target_path, s.problem_dir)
-                swisspy.print_and_log ("{} has been moved to" \
-                                   "{}.\n".format(folder, s.problem_dir),
+                swisspy.print_and_log ("{0} has been moved to" \
+                                   "{1}.\n".format(folder, s.problem_dir),
                                    s.log_files, quiet=s.quiet)
 
             except shutil.Error as e:
-                msg = "Unable to move {} to {} - it may already exist in that " \
+                msg = "Unable to move {0} to {1} - it may already exist in that " \
                       "location.\nIf you need to archive a changed version of " \
                       "this file, please rename it appropriately and retry.\n" \
-                      "Error: {}\n".format(folder, s.problem_dir, e)
+                      "Error: {2}\n".format(folder, s.problem_dir, e)
                 swisspy.print_and_log (msg, s.log_files, quiet=s.quiet)
 
 if __name__ == '__main__':
