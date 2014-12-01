@@ -279,6 +279,23 @@ class FileTransferTest(unittest.TestCase):
         for c in changed_paths:
             self.assertTrue(os.path.exists(c), c + " does not exist")
 
+    def test_rename_flag_works(self):
+        spaces_dir = os.path.join(self.source, 'To Archive', 'spaces')
+        os.mkdir(spaces_dir)
+        swisspy.make_file(spaces_dir, 'file with trailing space ')
+        swisspy.make_file(spaces_dir, 'file with trailing spaces   ')
+        os.mkdir(os.path.join(spaces_dir, 'dir with trailing space '))
+
+        self.minimal_command.append('-d')
+        sp.call(self.minimal_command)
+
+        self.assertTrue(self.in_dest('spaces'))
+        changed = ['file with trailing space', 'file with trailing spaces',
+                   'dir with trailing space']
+        changed_paths = [os.path.join(self.dest, 'spaces', c) for c in changed]
+        for c in changed_paths:
+            self.assertTrue(os.path.exists(c), c + " does not exist")
+
     # Delete .DS_Store files
 
     # Error on any existing different files
@@ -294,6 +311,10 @@ class FileTransferTest(unittest.TestCase):
     # Log files which want to be logged, put them into pf and do not transfer.
 
     # Remove resource forks properly
+
+
+
+
 
 if __name__ == '__main__':
     unittest.main()

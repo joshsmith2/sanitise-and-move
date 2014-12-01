@@ -804,7 +804,6 @@ class Sanitisation:
             pf = open(self.pid_file, 'w')
             pf.write(str(os.getpid()))
 
-
 def main(s):
     """ Call the requisite functions of s, a Sanitisation object"""
     #Write a pid file

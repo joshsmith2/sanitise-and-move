@@ -31,6 +31,5 @@ class RenamingTest(unittest.TestCase):
 
         self.assertEqual(output, desired)
 
-
 if __name__ == '__main__':
     unittest.main()
