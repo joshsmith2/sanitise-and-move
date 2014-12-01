@@ -239,7 +239,6 @@ class FileTransferTest(unittest.TestCase):
         clean_subdir_names = ['___', '_strings__', 'multi', 'multi_',
                               'multi_(1)', 'white space',]
         bad_sub_dirs = [os.path.join(bad_dir, bsn) for bsn in bad_subdir_names]
-        clean_sub_dirs = [os.path.join(bad_dir, csn) for csn in clean_subdir_names]
         os.mkdir(bad_dir)
         for bsd in bad_sub_dirs:
             os.mkdir(bsd)
@@ -297,4 +296,4 @@ class FileTransferTest(unittest.TestCase):
     # Remove resource forks properly
 
 if __name__ == '__main__':
-    unittest.main(exit=False)
+    unittest.main()
