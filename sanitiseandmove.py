@@ -903,6 +903,7 @@ if __name__ == '__main__':
                      quiet=args.quiet,
                      target=args.target,
                      temp_log_file=args.temp_log_file,
+                     rename=args.dorename
                      )
     try:
         main(s)
