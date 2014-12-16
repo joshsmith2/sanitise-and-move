@@ -4,6 +4,7 @@ import unittest
 import os
 import inspect
 from sanitiseandmove import *
+import argparse
 
 class FileTransferTest(unittest.TestCase):
 
@@ -138,7 +139,7 @@ class FileTransferTest(unittest.TestCase):
         assert not os.path.exists(os.path.join(self.dest, 'orphan.txt'))
         assert not os.listdir(os.path.join(self.source, 'Logs'))
 
-    def test_clean_files_get_to_dest_safely(self):
+    def test_clean_files_leave_souce_and_get_to_dest_safely(self):
         container_path = os.path.join(self.source, 'To Archive', 'new_dir')
         os.mkdir(container_path)
         content_path = os.path.join(container_path, 'file_to_transfer.txt')
@@ -148,6 +149,9 @@ class FileTransferTest(unittest.TestCase):
         sp.call(self.minimal_command)
 
         self.assertTrue(os.path.exists(os.path.join(self.dest, 'new_dir')))
+        self.assertFalse(os.path.exists(os.path.join(self.source,
+                                                     'Problem Files',
+                                                     'new_dir')))
 
     # Transfer files without changing the modification time, md5, name etc.
     def test_file_gets_there_intact(self):
