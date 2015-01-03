@@ -12,25 +12,27 @@ class FileTransferTest(unittest.TestCase):
         # Variables
         self.current_path = os.path.abspath(inspect.stack()[0][1])
         self.current_dir = os.path.dirname(self.current_path)
-        self.test_dir = os.path.join(self.current_dir, 'tests')
+        self.test_dir = self.current_dir
 
         # A dictionary containing all paths which need to be created for the test
         self.source_dir_name = 'test_source'
         self.dest_dir_name = 'test_dest'
         self.log_dir_name = 'test_logs'
 
-        self.source = os.path.join(self.test_dir, self.source_dir_name)
+        self.source = self.source_dir_name
 
         self.dest = os.path.join(self.test_dir, self.dest_dir_name) # Local
+
         #self.dest = os.path.join("/Volumes/HGSL-Archive/josh_test/",
         #                         self.dest_dir_name)
+
         self.log = os.path.join(self.test_dir, self.log_dir_name)
         self.rootdirs = [self.source, self.log, self.dest]
 
         self.source_subfolders = ['.Hidden', 'To Archive', 'Problem Files', 'Logs']
         self.log_subfolders = ['syslogs','renamed']
 
-        self.root_script_dir = self.current_dir
+        self.root_script_dir = os.path.join(self.current_dir, '..')
         self.command_path = os.path.abspath(os.path.join(self.root_script_dir,
                                                          'sanitiseandmove.py'
         ))
@@ -40,7 +42,7 @@ class FileTransferTest(unittest.TestCase):
         #Construct a list to run the sanitisePaths command using Popen
         self.minimal_command = [self.command_path,
                                '-q',
-                               '-t', self.source,
+                               '-t', os.path.abspath(self.source),
                                '-p', self.dest,
                                '-r', self.rename_log_dir,
                                '-l', self.syslog_dir,]
@@ -300,6 +302,9 @@ class FileTransferTest(unittest.TestCase):
         for c in changed_paths:
             self.assertTrue(os.path.exists(c), c + " does not exist")
 
+    # Check we can move it to a given mount point (credentials in a local file)
+
+
     # Delete .DS_Store files
 
     # Error on any existing different files
@@ -315,10 +320,6 @@ class FileTransferTest(unittest.TestCase):
     # Log files which want to be logged, put them into pf and do not transfer.
 
     # Remove resource forks properly
-
-
-
-
 
 if __name__ == '__main__':
     unittest.main()

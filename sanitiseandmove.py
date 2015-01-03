@@ -355,7 +355,7 @@ class Sanitisation:
                                                   clean_dict['out_string'][len(clean_split[0]):],
                                                   path)
             #Set the newly constructed path as the clean path to use
-            clean_dict['out_string'] = clean_path
+            clean_dict['out_string'] = os.path.basename(clean_path)
             self.rename_file(clean_dict, full_path, rename_log_file,
                              self.rename)
         # If the cleaned and original versions are the same, check that there's no
@@ -644,7 +644,7 @@ class Sanitisation:
                       "{2}".format(self.hidden_dir, o, e)
                 swisspy.print_and_log(msg, self.log_files, quiet=self.quiet)
 
-    def retry_transfer(self, src,dest,errors):
+    def retry_transfer(self, src, dest, errors):
         """Attempt to retransfer errored files.
         Returns none on success, and raises any errors encountered.
 
@@ -694,7 +694,7 @@ class Sanitisation:
 
         path_dict : dict
             A dictionary as output by sanitise(), with the following structure:
-                {'result': The sanitised string,
+                {'out_string': The sanitised string,
                  'subs_made': Any characters which were removed or substituted
                  'positions': the positions of the chars in subs_made}
         prev_path : str : path
@@ -806,9 +806,12 @@ class Sanitisation:
 
 def main(s):
     """ Call the requisite functions of s, a Sanitisation object"""
+    print "printworks"
     #Write a pid file
     if not s.test_suite:
+        print "Wriiting a .pid then..."
         s.write_pid()
+    
 
     for folder in swisspy.immediate_subdirs(s.to_archive_dir):
         deleted_files = []
