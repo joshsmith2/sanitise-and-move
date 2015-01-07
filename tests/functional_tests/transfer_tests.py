@@ -1,28 +1,31 @@
 #!/usr/bin/python
 
 from base import *
+import threading
+import sys
+import subprocess
 
 class FileTransferTest(FunctionalTest):
 
     def test_do_not_move_files_not_in_a_directory(self):
-        orphan_file_path = os.path.join(self.source,'To Archive', 'orphan.txt')
+        orphan_file_path = os.path.join(self.to_archive, 'orphan.txt')
         with open(orphan_file_path, 'w') as orphan_file:
             orphan_file.write("NO MOVEY FILEY")
 
-        sp.call(self.minimal_command)
+        sp.check_call(self.minimal_command)
 
         self.assertTrue(os.path.exists(orphan_file_path))
         assert not os.path.exists(os.path.join(self.dest, 'orphan.txt'))
         assert not os.listdir(os.path.join(self.source, 'Logs'))
 
     def test_clean_files_leave_souce_and_get_to_dest_safely(self):
-        container_path = os.path.join(self.source, 'To Archive', 'new_dir')
+        container_path = os.path.join(self.to_archive, 'new_dir')
         os.mkdir(container_path)
         content_path = os.path.join(container_path, 'file_to_transfer.txt')
         with open(content_path, 'w') as content:
             content.write("Fast and bulbous")
 
-        sp.call(self.minimal_command)
+        sp.check_call(self.minimal_command)
 
         self.assertTrue(os.path.exists(os.path.join(self.dest, 'new_dir')))
         self.assertFalse(os.path.exists(os.path.join(self.source,
@@ -31,13 +34,10 @@ class FileTransferTest(FunctionalTest):
 
     # Transfer files without changing the modification time, md5, name etc.
     def test_file_gets_there_intact(self):
-        full_container = os.path.join(self.source,
-                                      'To Archive',
-                                      'full_container')
+        full_container = os.path.join(self.to_archive, 'full_container')
         os.mkdir(full_container)
-        test_file_source = os.path.join(self.test_dir, 'test_file')
-        test_file_dest = os.path.join(self.source,
-                                      'To Archive',
+        test_file_source = os.path.join(self.tests_dir, 'test_file')
+        test_file_dest = os.path.join(self.to_archive,
                                       'full_container',
                                       'test_file')
         shutil.copyfile(test_file_source, test_file_dest)
@@ -45,8 +45,7 @@ class FileTransferTest(FunctionalTest):
                                                    'test_file'))
         correct_mod_time = swisspy.get_mod_time(os.path.join(full_container,
                                                              'test_file'))
-        os.mkdir(os.path.join(self.source,
-                              'To Archive',
+        os.mkdir(os.path.join(self.to_archive,
                               'empty_container'))
 
         s = self.minimal_object()
@@ -65,7 +64,7 @@ class FileTransferTest(FunctionalTest):
                                      'To Archive',
                                      'same_file')
         os.mkdir(same_file_dir)
-        test_file_source = os.path.join(self.test_dir, 'test_file')
+        test_file_source = os.path.join(self.tests_dir, 'test_file')
         test_file_dest = os.path.join(self.dest, 'same_file')
 
         shutil.copy(test_file_source, same_file_dir)
@@ -75,7 +74,7 @@ class FileTransferTest(FunctionalTest):
                                                     'same_file',
                                                     'test_file')))
 
-        sp.call(self.minimal_command)
+        sp.check_call(self.minimal_command)
 
         self.assertFalse(self.in_problem_files('same_file'))
         expected_logs = ["The following files already have up to date copies " +\
@@ -85,7 +84,7 @@ class FileTransferTest(FunctionalTest):
 
     # Log problem files without renaming them
     def test_log_bad_files(self):
-        bad_dir = os.path.join(self.source, 'To Archive', 'bad')
+        bad_dir = os.path.join(self.to_archive, 'bad')
         bad_subdir_names = ['***', '"strings??', 'white\tspace\n',
                             'multi', 'multi*', 'multi?']
         clean_subdir_names = ['___', '_strings__', 'multi', 'multi_',
@@ -97,7 +96,7 @@ class FileTransferTest(FunctionalTest):
         for bsd in bad_sub_dirs:
             os.mkdir(bsd)
 
-        sp.call(self.minimal_command)
+        sp.check_call(self.minimal_command)
 
         self.assertTrue(self.in_problem_files('bad'))
         self.assertFalse(self.in_dest('bad'))
@@ -113,7 +112,7 @@ class FileTransferTest(FunctionalTest):
 
     #Rename files if asked
     def test_rename_bad_files(self):
-        bad_dir = os.path.join(self.source, 'To Archive', 'bad')
+        bad_dir = os.path.join(self.to_archive, 'bad')
         bad_subdir_names = ['***', '"strings??', 'white\tspace\n',
                             'multi', 'multi*', 'multi?',]
         clean_subdir_names = ['___', '_strings__', 'multi', 'multi_',
@@ -143,7 +142,7 @@ class FileTransferTest(FunctionalTest):
 
     # Add trailing spaces to renaming
     def test_remove_trailing_spaces(self):
-        spaces_dir = os.path.join(self.source, 'To Archive', 'spaces')
+        spaces_dir = os.path.join(self.to_archive, 'spaces')
         os.mkdir(spaces_dir)
         swisspy.make_file(spaces_dir, 'file with trailing space ')
         swisspy.make_file(spaces_dir, 'file with trailing spaces   ')
@@ -160,14 +159,14 @@ class FileTransferTest(FunctionalTest):
             self.assertTrue(os.path.exists(c), c + " does not exist")
 
     def test_rename_flag_works(self):
-        spaces_dir = os.path.join(self.source, 'To Archive', 'spaces')
+        spaces_dir = os.path.join(self.to_archive, 'spaces')
         os.mkdir(spaces_dir)
         swisspy.make_file(spaces_dir, 'file with trailing space ')
         swisspy.make_file(spaces_dir, 'file with trailing spaces   ')
         os.mkdir(os.path.join(spaces_dir, 'dir with trailing space '))
 
         self.minimal_command.append('-d')
-        sp.call(self.minimal_command)
+        sp.check_call(self.minimal_command)
 
         self.assertTrue(self.in_dest('spaces'))
         changed = ['file with trailing space', 'file with trailing spaces',
@@ -176,7 +175,33 @@ class FileTransferTest(FunctionalTest):
         for c in changed_paths:
             self.assertTrue(os.path.exists(c), c + " does not exist")
 
-    # Check we can move it to a given mount point (credentials in a local file)
+    # Check a script being run again won't interrupt it
+    def test_cannot_run_script_twice(self):
+        large_file = os.path.join(self.tests_dir, 'test_file_large')
+        dir_to_move_1 = os.path.join(self.to_archive, 'dir_1')
+        dir_to_move_2 = os.path.join(self.to_archive, 'dir_2')
+        os.mkdir(dir_to_move_1)
+        os.mkdir(dir_to_move_2)
+
+        shutil.copy(large_file, dir_to_move_1)
+        shutil.copy(large_file, dir_to_move_2)
+
+        self.assertTrue(os.path.exists(os.path.join(dir_to_move_1,
+                                                    'test_file_large')))
+        self.assertTrue(os.path.exists(os.path.join(dir_to_move_2,
+                                                    'test_file_large')))
+
+        s=self.minimal_object()
+        thread_1 = threading.Thread(name='Thread 1', target=main, args=(s,))
+        thread_1.start()
+
+        self.assertTrue(exists_in(self.hidden, 'dir_1'))
+        self.assertFalse(exists_in(self.hidden, 'dir_2'))
+        self.assertTrue(exists_in(self.to_archive, 'dir_2'))
+        self.assertFalse(exists_in(self.to_archive, 'dir_1'))
+
+
+
 
 
     # Delete .DS_Store files
@@ -194,6 +219,8 @@ class FileTransferTest(FunctionalTest):
     # Log files which want to be logged, put them into pf and do not transfer.
 
     # Remove resource forks properly
+
+
 
 if __name__ == '__main__':
     unittest.main()

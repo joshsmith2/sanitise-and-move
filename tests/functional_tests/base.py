@@ -5,65 +5,80 @@ import os
 import inspect
 from sanitiseandmove import *
 
+def make_dir_if_not_exists(dir):
+    try:
+        os.mkdir(dir)
+    except OSError as e:
+        error_number = e[0]
+        if error_number == 17:  # File exists
+            pass
+        else:
+            raise
+
+def exists_in(container, content):
+    os.path.exists(os.path.join(container, content))
+
 class FunctionalTest(unittest.TestCase):
 
+
     def setUp(self):
-        # Variables
-        self.current_path = os.path.abspath(inspect.stack()[0][1])
-        self.current_dir = os.path.dirname(self.current_path)
-        self.test_dir = os.path.dirname(self.current_dir)
 
-        # A dictionary containing all paths which need to be created for the test
-        self.source_dir_name = 'test_source'
-        self.dest_dir_name = 'test_dest'
-        self.log_dir_name = 'test_logs'
+        # Get the path of this script, and its containing directory (the test dir).
+        self.script_path = os.path.abspath(inspect.stack()[0][1])
+        self.functional_tests_dir = os.path.dirname(self.script_path)
+        self.tests_dir = os.path.dirname(self.functional_tests_dir)
+        self.root_dir = os.path.dirname(self.tests_dir)
 
-        self.source = self.source_dir_name
+        self.create_folders()
 
-        self.dest = os.path.join(self.test_dir, self.dest_dir_name) # Local
-
-        #self.dest = os.path.join("/Volumes/HGSL-Archive/josh_test/",
-        #                         self.dest_dir_name)
-
-        self.log = os.path.join(self.test_dir, self.log_dir_name)
-        self.rootdirs = [self.source, self.log, self.dest]
-
-        self.source_subfolders = ['.Hidden', 'To Archive', 'Problem Files', 'Logs']
-        self.log_subfolders = ['syslogs','renamed']
-
-        self.root_script_dir = os.path.join(self.test_dir, '..')
-        self.command_path = os.path.abspath(os.path.join(self.root_script_dir,
+        self.command_path = os.path.abspath(os.path.join(self.root_dir,
                                                          'sanitiseandmove.py'
         ))
-        self.rename_log_dir = os.path.join(self.log, 'renamed')
-        self.syslog_dir = os.path.join(self.log, 'syslogs')
 
         #Construct a list to run the sanitisePaths command using Popen
         self.minimal_command = [self.command_path,
                                '-q',
                                '-t', os.path.abspath(self.source),
                                '-p', self.dest,
-                               '-r', self.rename_log_dir,
-                               '-l', self.syslog_dir,]
+                               '-r', self.log_renamed,
+                               '-l', self.log_syslog,]
         self.rename_command = self.minimal_command[:]
         self.rename_command.append('-d')
 
-        for root_dir in self.rootdirs:
-            self.make_dir_if_not_exists(root_dir)
-        for folder in self.source_subfolders:
-            setattr(self,
-                    folder,
-                    os.path.join(self.source, folder))
-            self.make_dir_if_not_exists(getattr(self, folder))
+    def create_folders(self):
+        # SOURCE:
+        self.source = os.path.join(self.tests_dir, 'test_source')
+        make_dir_if_not_exists(self.source)
 
-        for folder in self.log_subfolders:
-            setattr(self,
-                    folder,
-                    os.path.join(self.log, folder))
-            self.make_dir_if_not_exists(getattr(self, folder))
+        # Set up source subfolders and create them
+        self.to_archive = os.path.join(self.source, 'To Archive')
+        self.hidden = os.path.join(self.source, '.Hidden')
+        self.logs = os.path.join(self.source, 'Logs')
+        self.problem_files = os.path.join(self.source, 'Problem Files')
+        make_dir_if_not_exists(self.to_archive)
+        make_dir_if_not_exists(self.hidden)
+        make_dir_if_not_exists(self.logs)
+        make_dir_if_not_exists(self.problem_files)
+
+        # DEST:
+        self.dest = os.path.join(self.tests_dir, 'test_dest') # Local
+        #self.dest = "/Volumes/HGSL-Archive/josh_test/test-dest" # Remote
+        make_dir_if_not_exists(self.dest)
+
+        # LOGS:
+        # Create log folder
+        self.log = os.path.join(self.tests_dir, 'test_logs')
+        make_dir_if_not_exists(self.log)
+
+        # Create log subfolders
+        self.log_syslog = os.path.join(self.log, 'syslogs')
+        self.log_renamed = os.path.join(self.log, 'renamed')
+        make_dir_if_not_exists(self.log_syslog)
+        make_dir_if_not_exists(self.log_renamed)
+
 
     def tearDown(self):
-        for dir in self.rootdirs:
+        for dir in [self.log, self.dest, self.source]:
             try:
                 shutil.rmtree(dir)
             except OSError as e:
@@ -73,6 +88,11 @@ class FunctionalTest(unittest.TestCase):
                 else:
                     print str(e)
                     raise
+        # Remove pidfile
+        pid = os.path.join('/tmp', self.source.replace('/','') + ".pid")
+        if os.path.exists(pid):
+            os.remove(pid)
+
 
     def check_in_logs(self, folder, messages):
         self.get_log_contents(folder)
@@ -84,15 +104,15 @@ class FunctionalTest(unittest.TestCase):
         minimal, default arguments."""
         return Sanitisation(self.dest,
                             target=self.source,
-                            rename_log_dir=self.rename_log_dir,
-                            logstash_dir = self.syslog_dir,
+                            rename_log_dir=self.log_renamed,
+                            logstash_dir = self.log_syslog,
                             rename=True,
                             test_suite=True,
                             )
 
     def in_problem_files(self, folder):
         folder_in_pf = False
-        problem_dir = os.path.join(self.source, 'Problem Files', folder)
+        problem_dir = os.path.join(self.problem_files, folder)
         if os.path.exists(problem_dir):
             folder_in_pf = True
         return folder_in_pf
@@ -105,29 +125,10 @@ class FunctionalTest(unittest.TestCase):
         return folder_in_dest
 
     def get_log_contents(self, folder_name):
-        log_dir = os.path.join(self.source, 'Logs')
-        for log_file in os.listdir(os.path.join(log_dir, folder_name)):
-            log_path = os.path.join(log_dir, folder_name, log_file)
+        for log_file in os.listdir(os.path.join(self.logs, folder_name)):
+            log_path = os.path.join(self.logs, folder_name, log_file)
             with open(log_path, 'r') as lp:
                 self.log_contents = lp.readlines()
-
-    def make_dir_if_not_exists(self, dir):
-        try:
-            os.mkdir(dir)
-        except OSError as e:
-            error_number = e[0]
-            if error_number == 17:  # File exists
-                pass
-            else:
-                raise
-
-#    def create_dir_structure(self):
-#        for d_name in self.test_dirs:
-#            self.make_dir_if_not_exists(self.test_dirs[d_name])
-#        for d in self.:
-#
-#        for d in ['syslogs','renamed']:
-#            self.make_dir_if_not_exists(os.path.join(self.log, d))
 
 if __name__ == '__main__':
     unittest.main()
