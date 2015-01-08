@@ -10,12 +10,8 @@ Contact: joshsmith2@gmail.com
 
 """
 
-#TO DO LIST
-#FUNCTIONALITY:
-#TODO: Deal with proliferation of global variables
 
 #FORMATTING:
-#TODO: Fix string formatting for some long strings
 #TODO: Line lengths
 #TODO: Change the_root to hidden?
 
@@ -29,7 +25,7 @@ from itertools import chain
 import subprocess as sp
 import argparse
 from string import whitespace
-
+from threading import Event
 
 class File:
     """Used to define a file which exists in source and dest
@@ -222,7 +218,7 @@ class Sanitisation:
                  rename=False, rename_log_dir=None,
                  temp_log_file="/tmp/saniTempLog.log",
                  target='.', files_to_delete=['.DS_Store, ._.DS_Store'],
-                 test_suite=False):
+                 test_suite=False, create_pid=True):
 
         self.target = target
 
@@ -298,6 +294,11 @@ class Sanitisation:
         # Register functions to run on exit
         atexit.register(self.clean_up)
 
+        # Set events to pass to other threads
+        self.moved_to_hidden = Event()
+        self.hidden_checked = Event()
+
+        self.create_pid = create_pid
 
     def clean_up(self):
         """Run some cleanup tasks on unexpected exit"""
@@ -447,16 +448,22 @@ class Sanitisation:
                         source_file.m_time = swisspy.get_mod_time(source_file.path)
                         dest_file.size = os.path.getsize(dest_file.path)
                         dest_file.m_time = swisspy.get_mod_time(dest_file.path)
+
+                        # If size and mod time are the same, so are the files.
                         if source_file.size == dest_file.size and \
                            source_file.m_time == dest_file.m_time:
                             existing_same_files.append(source_file)
                         else:
+                            # If the sizes are different, so are the files.
                             if source_file.size != dest_file.size:
                                 existing_differing_files.append((source_file,
                                                                dest_file))
+                            # If the sizes are the same, but m_time differs,
+                            # do an md5 check.
                             elif source_file.m_time != dest_file.m_time:
                                 source_file.md5 = swisspy.get_md5(source_file.path)
                                 dest_file.md5 = swisspy.get_md5(dest_file.path)
+                                # If the md5s differ, so do the files
                                 if source_file.md5 != dest_file.md5:
                                     existing_differing_files.append((source_file,
                                                                    dest_file))
@@ -593,13 +600,17 @@ class Sanitisation:
                      syslog_files=[self.logstash_files['transferred']])
 
         if existing_same_files:
-            log_list("The following files already have up to date "
-                     "copies in the archive, and were therefore not "
-                     "transferred:",
+            msg = "{0} files already have up-to-date copies in the archive, " \
+                  "and were therefore not transferred."\
+                  .format(len(existing_same_files))
+            swisspy.print_and_log(msg, self.log_files, quiet=self.quiet)
+
+            log_list("",
                      self.strip_hidden([e.path for e in existing_same_files], prefix),
-                     log_files=self.log_files,
+                     log_files=[],
                      syslog_files=[self.logstash_files['there_but_same']],
                      )
+
             if not existing_differing_files:
                 for esf in existing_same_files:
                     try:
@@ -806,10 +817,9 @@ class Sanitisation:
 
 def main(s):
     """ Call the requisite functions of s, a Sanitisation object"""
-    print "printworks"
+
     #Write a pid file
-    if not s.test_suite:
-        print "Wriiting a .pid then..."
+    if s.create_pid:
         s.write_pid()
     
 
@@ -851,6 +861,7 @@ def main(s):
             continue
         else:
             shutil.move(folder_start_path, os.path.join(s.the_root,folder))
+            s.moved_to_hidden.set()
 
         #Sanitise the directory itself, and update 'folder' if a change is made
         s.rename_to_clean(folder, s.the_root, 'dir', rename_log_file)

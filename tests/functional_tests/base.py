@@ -3,6 +3,7 @@
 import unittest
 import os
 import inspect
+import threading
 from sanitiseandmove import *
 
 def make_dir_if_not_exists(dir):
@@ -16,10 +17,9 @@ def make_dir_if_not_exists(dir):
             raise
 
 def exists_in(container, content):
-    os.path.exists(os.path.join(container, content))
+    return os.path.exists(os.path.join(container, content))
 
 class FunctionalTest(unittest.TestCase):
-
 
     def setUp(self):
 
@@ -68,6 +68,7 @@ class FunctionalTest(unittest.TestCase):
         # LOGS:
         # Create log folder
         self.log = os.path.join(self.tests_dir, 'test_logs')
+        self.temp_log = os.path.join(self.log, 'saniPathsTempLog.txt')
         make_dir_if_not_exists(self.log)
 
         # Create log subfolders
@@ -78,6 +79,11 @@ class FunctionalTest(unittest.TestCase):
 
 
     def tearDown(self):
+        # Wait for running test threads to finish
+        for thread in threading.enumerate():
+            if "test_thread" in thread.name:
+                thread.join(60)
+
         for dir in [self.log, self.dest, self.source]:
             try:
                 shutil.rmtree(dir)
@@ -107,7 +113,9 @@ class FunctionalTest(unittest.TestCase):
                             rename_log_dir=self.log_renamed,
                             logstash_dir = self.log_syslog,
                             rename=True,
+                            temp_log_file=self.temp_log,
                             test_suite=True,
+                            create_pid=False,
                             )
 
     def in_problem_files(self, folder):
