@@ -26,6 +26,7 @@ import subprocess as sp
 import argparse
 from string import whitespace
 from threading import Event
+from time import ctime
 
 class File:
     """Used to define a file which exists in source and dest
@@ -47,8 +48,12 @@ class File:
                  md5=""):
         self.path = path
         self.size = size
-        self.m_time = m_time
+        self.m_time_secs = m_time
         self.md5 = md5
+
+        self.modification_time = None
+        if self.m_time_secs:
+            self.modification_time = ctime(m_time)
 
 def log_list(human_header,  the_list,
              syslog_header="", log_files=[], syslog_files=[],
@@ -203,6 +208,9 @@ def get_arguments():
     p.add_argument('--temp-log-file', dest='temp_log_file', metavar='PATH',
                    default="/tmp/saniTempLog.log",
                    help="A file to write temporary log information to.")
+    p.add_argument('--trust-source', dest='trust_source', action='store_true',
+                   default=False, help="Transfer all files from source "
+                                       "regardless of mod time. Use with caution.")
     #TODO: What does this store?
     return p.parse_args()
 
@@ -218,7 +226,8 @@ class Sanitisation:
                  rename=False, rename_log_dir=None,
                  temp_log_file="/tmp/saniTempLog.log",
                  target='.', files_to_delete=['.DS_Store, ._.DS_Store'],
-                 test_suite=False, create_pid=True):
+                 test_suite=False, create_pid=True,
+                 trust_source=True):
 
         self.target = target
 
@@ -266,6 +275,7 @@ class Sanitisation:
         self.quiet = quiet
         self.rename = rename
         self.test_suite = test_suite
+        self.trust_source = trust_source
 
         # Paths - e.g to log files
         self.error_log_file_name = error_log_file_name
@@ -445,13 +455,16 @@ class Sanitisation:
                     if os.path.exists(dest_file.path):
                         #Get attributes for source and dest files
                         source_file.size = os.path.getsize(source_file.path)
-                        source_file.m_time = swisspy.get_mod_time(source_file.path)
+                        source_file.m_time_secs = os.path.getmtime(source_file.path)
+                        source_file.modification_time = ctime(source_file.m_time_secs)
+
                         dest_file.size = os.path.getsize(dest_file.path)
-                        dest_file.m_time = swisspy.get_mod_time(dest_file.path)
+                        dest_file.m_time_secs = os.path.getmtime(dest_file.path)
+                        dest_file.modification_time = ctime(dest_file.m_time_secs)
 
                         # If size and mod time are the same, so are the files.
                         if source_file.size == dest_file.size and \
-                           source_file.m_time == dest_file.m_time:
+                           source_file.m_time_secs == dest_file.m_time_secs:
                             existing_same_files.append(source_file)
                         else:
                             # If the sizes are different, so are the files.
@@ -460,7 +473,7 @@ class Sanitisation:
                                                                dest_file))
                             # If the sizes are the same, but m_time differs,
                             # do an md5 check.
-                            elif source_file.m_time != dest_file.m_time:
+                            elif source_file.m_time_secs != dest_file.m_time_secs:
                                 source_file.md5 = swisspy.get_md5(source_file.path)
                                 dest_file.md5 = swisspy.get_md5(dest_file.path)
                                 # If the md5s differ, so do the files
@@ -490,25 +503,38 @@ class Sanitisation:
                     #edf is a tuple of source and dest files, so:
                     for f in edf:
                         file_report = "\n\t{0}:".format(f.path)
-                        for attr_name in ['size','m_time','md5']:
+                        for attr_name in ['size','modification_time','md5']:
                             attr_value = getattr(f,attr_name)
                             if attr_value:
                                 file_report += "\n\t{0}: {1}".format(attr_name,
                                                                      attr_value)
                         file_reports.append(file_report)
                     file_reports.append("\n")
-                log_list("Unable to move {0}. The following {1} files "
-                         "already exist in {2}: "
-                         "\n".format(source, len(existing_differing_files),
-                                     dest),
-                        file_reports,
-                        log_files = self.log_files)
-                        #TODO: Put syslog files in here, into [there_and_different]
-                self.purge_hidden_dir()
-                swisspy.print_and_log("Please version these files " +\
-                                      "and attempt the upload again.\n",
-                                      self.log_files, quiet=self.quiet)
-            else:
+
+                if not self.trust_source:
+                    log_list("Unable to move {0}. The following {1} files "
+                             "already exist in {2}: "
+                             "\n".format(source, len(existing_differing_files),
+                                         dest),
+                            file_reports,
+                            log_files = self.log_files)
+                            #TODO: Put syslog files in here, into [there_and_different]
+                    self.purge_hidden_dir()
+                    swisspy.print_and_log("Please version these files " +\
+                                          "and attempt the upload again.\n",
+                                          self.log_files, quiet=self.quiet)
+                else:
+                    log_list("Since trust_source is set, the following files, "
+                             "which were present on the destination, will "
+                             "be overwritten:",
+                             file_reports,
+                             log_files = self.log_files
+                    )
+                    edf_sources = [e[0] for e in existing_differing_files]
+                    edf_paths = [e_s.path for e_s in edf_sources]
+                    cleared_for_copy.extend(edf_paths)
+
+            if not existing_differing_files or self.trust_source:
                 if cleared_for_copy:
                     swisspy.print_and_log("Moving files cleared for copy"
                                           "\n\tFiles transferred:\n",
@@ -917,7 +943,8 @@ if __name__ == '__main__':
                      quiet=args.quiet,
                      target=args.target,
                      temp_log_file=args.temp_log_file,
-                     rename=args.dorename
+                     rename=args.dorename,
+                     trust_source=args.trust_source
                      )
     try:
         main(s)

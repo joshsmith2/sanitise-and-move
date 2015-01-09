@@ -31,5 +31,12 @@ class RenamingTest(unittest.TestCase):
 
         self.assertEqual(output, desired)
 
+class IgnoringClashesTest(unittest.TestCase):
+
+    def test_can_set_trust_source(self):
+        s = Sanitisation('/tmp', trust_source=True)
+        self.assertTrue(s.trust_source)
+
+
 if __name__ == '__main__':
     unittest.main()

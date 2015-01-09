@@ -224,6 +224,43 @@ class FileTransferTest(FunctionalTest):
 #        self.assertTrue(exists_in(self.to_archive, 'dir_2'))
 #        self.assertFalse(exists_in(self.to_archive, 'dir_1'))
 
+    def test_trust_source_works_and_overwrites_files(self):
+        # Make a directory twice, with two seperately created files
+        def create_test_dir(to_write):
+            os.mkdir(dir_to_move)
+            with open (source_file, 'w') as f:
+                f.write(to_write)
+
+        dir_to_move = os.path.join(self.to_archive, 'Bunsen')
+        source_file = os.path.join(dir_to_move, 'Berna.txt')
+        dest_file = os.path.join(self.dest, 'Bunsen', 'Berna.txt')
+        create_test_dir("BANGABANG")
+
+        first_mod_time = os.path.getmtime(source_file)
+
+        s = self.minimal_object()
+        main(s)
+
+        # Check that's moved the file
+        self.assertFalse(os.path.exists(source_file))
+        self.assertTrue(os.path.exists(dest_file))
+
+        create_test_dir("HANGABANG")
+        second_mod_time = os.path.getmtime(source_file)
+
+        self.assertTrue(second_mod_time > first_mod_time)
+
+        t = self.minimal_object()
+        t.trust_source = True
+        main(t)
+
+        dest_mod_time = os.path.getmtime(dest_file)
+        with open(dest_file, 'r') as f:
+            dest_contents = f.readlines()
+
+        self.assertTrue("HANGABANG" in dest_contents)
+        self.assertEqual(dest_mod_time, second_mod_time)
+
 
 
 
@@ -242,6 +279,8 @@ class FileTransferTest(FunctionalTest):
     # Log files which want to be logged, put them into pf and do not transfer.
 
     # Remove resource forks properly
+
+    #
 
 
 

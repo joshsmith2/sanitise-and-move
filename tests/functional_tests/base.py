@@ -77,7 +77,6 @@ class FunctionalTest(unittest.TestCase):
         make_dir_if_not_exists(self.log_syslog)
         make_dir_if_not_exists(self.log_renamed)
 
-
     def tearDown(self):
         # Wait for running test threads to finish
         for thread in threading.enumerate():
