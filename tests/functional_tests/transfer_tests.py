@@ -47,8 +47,6 @@ class FileTransferTest(FunctionalTest):
                                                    'test_file'))
         correct_mod_time = swisspy.get_mod_time(os.path.join(full_container,
                                                              'test_file'))
-        os.mkdir(os.path.join(self.to_archive,
-                              'empty_container'))
 
         s = self.minimal_object()
         main(s)

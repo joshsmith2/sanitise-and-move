@@ -37,6 +37,5 @@ class IgnoringClashesTest(unittest.TestCase):
         s = Sanitisation('/tmp', trust_source=True)
         self.assertTrue(s.trust_source)
 
-
 if __name__ == '__main__':
     unittest.main()
