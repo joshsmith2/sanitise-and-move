@@ -222,6 +222,31 @@ class FileTransferTest(FunctionalTest):
 #        self.assertTrue(exists_in(self.to_archive, 'dir_2'))
 #        self.assertFalse(exists_in(self.to_archive, 'dir_1'))
 
+
+
+
+
+
+    # Delete .DS_Store files
+
+    # Error on any existing different files
+
+    # Transfer any new files in existing directories
+
+    # If the connection is broken, error nicely
+
+    # Not be able to run twice on the same directory
+
+    # Delete successfully retried files from PF
+
+    # Log files which want to be logged, put them into pf and do not transfer.
+
+    # Remove resource forks properly
+
+    #
+
+class TrustSourceTest(FunctionalTest):
+
     def test_trust_source_works_and_overwrites_files(self):
         # Make a directory twice, with two seperately created files
         def create_test_dir(to_write):
@@ -265,27 +290,34 @@ class FileTransferTest(FunctionalTest):
         self.assertTrue("HANGABANG" in dest_contents)
         self.assertEqual(dest_mod_time, second_mod_time)
 
+    def test_empty_directories_dont_overwrite_full_ones(self):
 
+        def create_test_dir(to_write):
+            os.mkdir(dir_to_move)
+            with open (source_file, 'w') as f:
+                f.write(to_write)
 
+        dir_to_move = os.path.join(self.to_archive, 'test_dir')
+        source_file = os.path.join(dir_to_move, 'Keepme.txt')
+        dest_file = os.path.join(self.dest, 'test_dir', 'Keepme.txt')
+        create_test_dir("VALUABLE_INFO")
 
-    # Delete .DS_Store files
+        s = self.minimal_object()
+        main(s)
 
-    # Error on any existing different files
+        # Check that's moved the file
+        self.assertFalse(os.path.exists(source_file))
+        self.assertFalse(os.path.exists(dir_to_move))
+        self.assertTrue(os.path.exists(dest_file))
 
-    # Transfer any new files in existing directories
+        os.mkdir(dir_to_move)
 
-    # If the connection is broken, error nicely
+        t = self.minimal_object()
+        t.trust_source = True
+        main(t)
 
-    # Not be able to run twice on the same directory
-
-    # Delete successfully retried files from PF
-
-    # Log files which want to be logged, put them into pf and do not transfer.
-
-    # Remove resource forks properly
-
-    #
-
+        self.assertFalse(os.path.exists(dir_to_move))
+        self.assertTrue(os.path.exists(dest_file))
 
 
 if __name__ == '__main__':
