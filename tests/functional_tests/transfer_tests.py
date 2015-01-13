@@ -241,7 +241,13 @@ class FileTransferTest(FunctionalTest):
 
         # Check that's moved the file
         self.assertFalse(os.path.exists(source_file))
+        self.assertFalse(os.path.exists(dir_to_move))
         self.assertTrue(os.path.exists(dest_file))
+
+        with open(dest_file, 'r') as f:
+            dest_contents = f.readlines()
+
+        self.assertTrue("BANGABANG" in dest_contents)
 
         create_test_dir("HANGABANG")
         second_mod_time = os.path.getmtime(source_file)

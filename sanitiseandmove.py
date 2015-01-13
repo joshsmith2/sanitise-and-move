@@ -476,7 +476,6 @@ class Sanitisation:
                             elif self.trust_source:
                                 cleared_for_copy.append(source_file.path)
 
-
                             # If the sizes are the same, but m_time differs,
                             # do an md5 check.
                             elif source_file.m_time_secs != dest_file.m_time_secs:
@@ -546,11 +545,12 @@ class Sanitisation:
                                           "\n\tFiles transferred:\n",
                                           self.log_files, quiet=self.quiet)
                     for c in cleared_for_copy:
-                        target = os.path.join(dest,c)
+                        file_path = self.strip_hidden([c], source + '/')[0]
+                        target = os.path.join(dest,file_path)
                         try:
                             shutil.move(c, target)
-                            copied_files.append(c)
-                            swisspy.print_and_log("\t" + c + "\n",
+                            copied_files.append(file_path)
+                            swisspy.print_and_log("\t" + file_path + "\n",
                                                   self.log_files,
                                                   ts=None,
                                                   quiet=self.quiet)
@@ -805,7 +805,7 @@ class Sanitisation:
                                    new_path_to_log + '\n\n',
                                    self.log_files, ts=None, quiet=self.quiet)
 
-    def strip_hidden(self, from_list, to_remove):
+    def strip_hidden(self, from_list, to_remove=None):
         """Given a lost of files, remove a given common path from them - in this
          case, the path to the hidden directory.
 
