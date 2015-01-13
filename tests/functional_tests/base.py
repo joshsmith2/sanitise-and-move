@@ -19,7 +19,7 @@ def make_dir_if_not_exists(dir):
 def exists_in(container, content):
     return os.path.exists(os.path.join(container, content))
 
-class FunctionalTest(unittest.TestCase):
+class SanitiseTest(unittest.TestCase):
 
     def setUp(self):
 
@@ -28,6 +28,7 @@ class FunctionalTest(unittest.TestCase):
         self.functional_tests_dir = os.path.dirname(self.script_path)
         self.tests_dir = os.path.dirname(self.functional_tests_dir)
         self.root_dir = os.path.dirname(self.tests_dir)
+        self.log_contents = ""
 
         self.create_folders()
 
@@ -44,6 +45,10 @@ class FunctionalTest(unittest.TestCase):
                                '-l', self.log_syslog,]
         self.rename_command = self.minimal_command[:]
         self.rename_command.append('-d')
+
+        # A dictionary to hold the (timestamped) names and contents
+        # of the log files created by sanitiseandmove.
+        self.log_contents = {}
 
     def create_folders(self):
         # SOURCE:
@@ -77,7 +82,6 @@ class FunctionalTest(unittest.TestCase):
         make_dir_if_not_exists(self.log_syslog)
         make_dir_if_not_exists(self.log_renamed)
 
-
     def tearDown(self):
         # Wait for running test threads to finish
         for thread in threading.enumerate():
@@ -99,11 +103,12 @@ class FunctionalTest(unittest.TestCase):
         if os.path.exists(pid):
             os.remove(pid)
 
-
+    # This only good for the standard use case where you want to check all the
+    # logs as a whole.
     def check_in_logs(self, folder, messages):
         self.get_log_contents(folder)
         for m in messages:
-            self.assertTrue(m in '\n'.join(self.log_contents))
+            self.assertTrue(m in '\n'.join(self.log_contents.itervalues()))
 
     def minimal_object(self):
         """Create and return a sanitisation object which will work, with
@@ -133,10 +138,11 @@ class FunctionalTest(unittest.TestCase):
         return folder_in_dest
 
     def get_log_contents(self, folder_name):
+        log_contents = {}
         for log_file in os.listdir(os.path.join(self.logs, folder_name)):
             log_path = os.path.join(self.logs, folder_name, log_file)
             with open(log_path, 'r') as lp:
-                self.log_contents = lp.readlines()
+                self.log_contents[log_path] = lp.readlines()
 
 if __name__ == '__main__':
     unittest.main()

@@ -217,7 +217,7 @@ class Sanitisation:
                  logstash_dir='/var/log/sanitisePathsSysLogs', oversize_log_file_name=None, quiet=False,
                  rename=False, rename_log_dir=None,
                  temp_log_file="/tmp/saniTempLog.log",
-                 target='.', files_to_delete=['.DS_Store, ._.DS_Store'],
+                 target='.', files_to_delete=['.DS_Store', '._.DS_Store'],
                  test_suite=False, create_pid=True):
 
         self.target = target
@@ -660,34 +660,34 @@ class Sanitisation:
         Returns none on success, and raises any errors encountered.
 
         """
-        if os.path.exists(dest):
-        #If file exists in dest, do an md5 check to see if it's the same as src.
+        def transfer_catching_errors():
             try:
-                src_md5 = swisspy.get_md5(src)
-            except IOError as e:
-                if os.path.exists(dest):
-                    swisspy.print_and_log("File " + src + " does not exist. " +\
-                                      "Look for it at " + dest + \
-                                      "\nError: " + str(e) + "\n",
-                                      self.log_files, quiet=self.quiet)
-                else:
-                    msg = "File does not exist at {0} or {1}.\nError:{2}\n" \
-                          "".format(src, dest, e)
-                    swisspy.print_and_log(msg, self.log_files,
-                                          quiet=self.quiet)
+                shutil.move(src,dest)
                 return None
+            except shutil.Error as e:
+                return e.message
+            except Exception as e:
+                print "\nA fatal error occurred: ", e
+                sys.exit(1)
 
-            dest_md5 = swisspy.get_md5(dest)
-            if src_md5 == dest_md5:
-                return None
-        try:
-            shutil.move(src,dest)
-            return None
-        except shutil.Error as e:
-            return e.message
-        except Exception as e:
-            print "\nA fatal error occurred: ", e
-            sys.exit(1)
+        # If the file doesn't exist in dest, try and transfer from source
+        if not os.path.exists(dest):
+            if os.path.exists(src):
+                return transfer_catching_errors()
+            else:
+                msg = "Error: retried file does not exist at {0} or {1}.\n"\
+                 "".format(src, dest)
+                swisspy.print_and_log(msg, self.log_files,
+                                          quiet=self.quiet)
+
+        # If the file does exist at the destination, attempt transfer.
+        else:
+            if os.path.exists(src):
+                return transfer_catching_errors()
+            else:
+                swisspy.print_and_log("{0} does not exist. " + \
+                                      "Look for it at {1}.".format(src, dest),
+                                      self.log_files, quiet=self.quiet)
 
     def retry_wrapper(self):
         """Iterate through self.error_list, retrying the transfer of any failed files"""
