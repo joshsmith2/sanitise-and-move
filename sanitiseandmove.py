@@ -225,7 +225,7 @@ class Sanitisation:
                  logstash_dir='/var/log/sanitisePathsSysLogs', oversize_log_file_name=None, quiet=False,
                  rename=False, rename_log_dir=None,
                  temp_log_file="/tmp/saniTempLog.log",
-                 target='.', files_to_delete=['.DS_Store, ._.DS_Store'],
+                 target='.', files_to_delete=['.DS_Store', '._.DS_Store'],
                  test_suite=False, create_pid=True,
                  trust_source=True):
 

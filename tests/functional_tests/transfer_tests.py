@@ -174,6 +174,21 @@ class FileTransferTest(FunctionalTest):
         for c in changed_paths:
             self.assertTrue(os.path.exists(c), c + " does not exist")
 
+    def test_DS_Store_files_deleted(self):
+        source_dir = os.path.join(self.to_archive, 'moveme')
+        ds_source = os.path.join(source_dir, '.DS_Store')
+        ds_dest = os.path.join(self.dest, 'moveme', '.DS_Store')
+
+        os.mkdir(source_dir)
+        with open(ds_source, 'w') as ds:
+            ds.write('dot')
+
+        s = self.minimal_object()
+        main(s)
+
+        self.assertFalse(os.path.exists(ds_dest))
+
+
     # Check a script being run again won't interrupt it
 #    def test_cannot_run_script_twice(self):
 #        large_file = os.path.join(self.tests_dir, 'test_file_large')
@@ -222,12 +237,6 @@ class FileTransferTest(FunctionalTest):
 #        self.assertTrue(exists_in(self.to_archive, 'dir_2'))
 #        self.assertFalse(exists_in(self.to_archive, 'dir_1'))
 
-
-
-
-
-
-    # Delete .DS_Store files
 
     # Error on any existing different files
 
