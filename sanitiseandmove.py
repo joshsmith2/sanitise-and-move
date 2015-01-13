@@ -541,21 +541,8 @@ class Sanitisation:
 
             if not existing_differing_files or self.trust_source:
                 if cleared_for_copy:
-                    swisspy.print_and_log("Moving files cleared for copy"
-                                          "\n\tFiles transferred:\n",
-                                          self.log_files, quiet=self.quiet)
-                    for c in cleared_for_copy:
-                        file_path = self.strip_hidden([c], source + '/')[0]
-                        target = os.path.join(dest,file_path)
-                        try:
-                            shutil.move(c, target)
-                            copied_files.append(file_path)
-                            swisspy.print_and_log("\t" + file_path + "\n",
-                                                  self.log_files,
-                                                  ts=None,
-                                                  quiet=self.quiet)
-                        except shutil.Error as e:
-                            self.error_list.append(e)
+                    self.move_files(source, dest,
+                                    cleared_for_copy, copied_files)
 
                 if self.error_list:
                     log_list("An error occurred when moving some files to " \
@@ -846,6 +833,41 @@ class Sanitisation:
         else:
             pf = open(self.pid_file, 'w')
             pf.write(str(os.getpid()))
+
+    def move_files(self, source, dest, files, copied_files):
+        swisspy.print_and_log("Moving files cleared for copy"
+                              "\n\tFiles transferred:\n",
+                              self.log_files, quiet=self.quiet)
+        for f in files:
+            if source in f:
+                file_path = self.strip_hidden([f], source + '/')[0]
+            else:
+                file_path = f
+            target = os.path.join(dest,file_path)
+            try:
+                shutil.move(f, target)
+            except shutil.Error as e:
+                self.error_list.append(e)
+                return
+            except IOError as e:
+                if e.errno == 2: # No such file or directory
+                    # If we can't find the file and it's a resource fork,
+                    # delete it.
+                    if os.path.basename(file_path)[:2] == "._":
+                        if os.path.exists(f):
+                            os.remove(f)
+                    else:
+                        raise
+                else:
+                    raise
+            else:
+                copied_files.append(file_path)
+                swisspy.print_and_log("\t" + file_path + "\n",
+                                      self.log_files,
+                                      ts=None,
+                                      quiet=self.quiet)
+
+
 
 def main(s):
     """ Call the requisite functions of s, a Sanitisation object"""

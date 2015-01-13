@@ -20,7 +20,7 @@ class FileTransferTest(FunctionalTest):
         assert not os.path.exists(os.path.join(self.dest, 'orphan.txt'))
         assert not os.listdir(os.path.join(self.source, 'Logs'))
 
-    def test_clean_files_leave_souce_and_get_to_dest_safely(self):
+    def test_clean_files_leave_source_and_get_to_dest_safely(self):
         container_path = os.path.join(self.to_archive, 'new_dir')
         os.mkdir(container_path)
         content_path = os.path.join(container_path, 'file_to_transfer.txt')
@@ -174,20 +174,16 @@ class FileTransferTest(FunctionalTest):
         for c in changed_paths:
             self.assertTrue(os.path.exists(c), c + " does not exist")
 
-    def test_DS_Store_files_deleted(self):
-        source_dir = os.path.join(self.to_archive, 'moveme')
-        ds_source = os.path.join(source_dir, '.DS_Store')
-        ds_dest = os.path.join(self.dest, 'moveme', '.DS_Store')
-
-        os.mkdir(source_dir)
-        with open(ds_source, 'w') as ds:
-            ds.write('dot')
-
+    def test_do_not_error_on_missing_resource_forks(self):
+        fork_dir_source = os.path.join(self.source, 'fork_dir')
+        fork_dir_dest = os.path.join(self.dest, 'fork_dir')
+        os.mkdir(fork_dir_dest)
         s = self.minimal_object()
-        main(s)
 
-        self.assertFalse(os.path.exists(ds_dest))
+        # Should not raise IOError
+        s.move_files(fork_dir_source, fork_dir_dest, ['._butt'], [])
 
+        # TEST FILES TRANSFERRED NOT PRINTED
 
     # Check a script being run again won't interrupt it
 #    def test_cannot_run_script_twice(self):

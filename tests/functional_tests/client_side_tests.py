@@ -17,3 +17,21 @@ class PickUpProjectsTest(FunctionalTest):
     def test_exits_gracefully_if_no_files_to_move(self):
         s=self.minimal_object()
         main(s)
+        # Check no logs
+
+class RemoveUnwantedFilesTest(FunctionalTest):
+
+    def test_DS_Store_files_deleted(self):
+        source_dir = os.path.join(self.to_archive, 'moveme')
+        ds_source = os.path.join(source_dir, '.DS_Store')
+        ds_dest = os.path.join(self.dest, 'moveme', '.DS_Store')
+
+        os.mkdir(source_dir)
+        with open(ds_source, 'w') as ds:
+            ds.write('dot')
+
+        s = self.minimal_object()
+        main(s)
+
+        self.assertFalse(os.path.exists(ds_dest))
+
