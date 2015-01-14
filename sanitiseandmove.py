@@ -409,10 +409,12 @@ class Sanitisation:
 
         """
         existing_differing_files = [] #Files which already exist in dest, and differ from any uploaded files with the same name. If this is not empty by the end of the walk, source will not be copied
+        different_but_trusted = []
         existing_same_files = [] #Files which exist in the destination but have the same modification time and size as the file to be moved.
         cleared_for_copy = [] # Array of directories which can safely be copied as long as no clashes are found. Returned if and only if existing_differing_files is empty.
         copied_files = [] # Array of files which made it.
         empty_dirs = []
+
         #TODO: Put the variables above into the docstring
         source_to_log = source.split('/')[-1]
         prefix = source[:-len(source_to_log)]
@@ -467,26 +469,32 @@ class Sanitisation:
                            source_file.m_time_secs == dest_file.m_time_secs:
                             existing_same_files.append(source_file)
                         else:
-                            # If the sizes are different, so are the files.
-                            if source_file.size != dest_file.size:
+                            if source_file.size < dest_file.size:
                                 existing_differing_files.append((source_file,
-                                                               dest_file))
+                                                                 dest_file))
 
-                            # If we trust the source, move the file.
-                            elif self.trust_source:
-                                cleared_for_copy.append(source_file.path)
+                            # If the sizes are different, so are the files.
+                            if source_file.size >= dest_file.size:
+                                if self.trust_source:
+                                    different_but_trusted.append((source_file,
+                                                                  dest_file))
+                                    cleared_for_copy.append(source_file.path)
+                                else:
+                                    existing_differing_files.append((source_file,
+                                                                     dest_file))
 
                             # If the sizes are the same, but m_time differs,
-                            # do an md5 check.
-                            elif source_file.m_time_secs != dest_file.m_time_secs:
-                                source_file.md5 = swisspy.get_md5(source_file.path)
-                                dest_file.md5 = swisspy.get_md5(dest_file.path)
-                                # If the md5s differ, so do the files
-                                if source_file.md5 != dest_file.md5:
-                                    existing_differing_files.append((source_file,
-                                                                   dest_file))
-                                else:
-                                    existing_same_files.append(source_file)
+                            # do an md5 check. Skip if trust_source is on.
+                            elif not self.trust_source:
+                                if source_file.m_time_secs != dest_file.m_time_secs:
+                                    source_file.md5 = swisspy.get_md5(source_file.path)
+                                    dest_file.md5 = swisspy.get_md5(dest_file.path)
+                                    # If the md5s differ, so do the files
+                                    if source_file.md5 != dest_file.md5:
+                                        existing_differing_files.append((source_file,
+                                                                       dest_file))
+                                    else:
+                                        existing_same_files.append(source_file)
                     else:
                         cleared_for_copy.append(source_file.path)
 
@@ -516,30 +524,40 @@ class Sanitisation:
                         file_reports.append(file_report)
                     file_reports.append("\n")
 
-                if not self.trust_source:
-                    log_list("Unable to move {0}. The following {1} files "
-                             "already exist in {2}: "
-                             "\n".format(source, len(existing_differing_files),
-                                         dest),
-                            file_reports,
-                            log_files = self.log_files)
-                            #TODO: Put syslog files in here, into [there_and_different]
-                    self.purge_hidden_dir()
-                    swisspy.print_and_log("Please version these files " +\
-                                          "and attempt the upload again.\n",
-                                          self.log_files, quiet=self.quiet)
-                else:
-                    log_list("Since trust_source is set, the following files, "
-                             "which were present on the destination, will "
-                             "be overwritten:",
-                             file_reports,
-                             log_files = self.log_files
-                    )
-                    edf_sources = [e[0] for e in existing_differing_files]
-                    edf_paths = [e_s.path for e_s in edf_sources]
-                    cleared_for_copy.extend(edf_paths)
+                message = "The following {0} files already exist in {1}; " \
+                          "the transfer was unable to continue." \
+                          "\n".format(len(existing_differing_files), dest)
 
-            if not existing_differing_files or self.trust_source:
+                log_list(message, file_reports, log_files = self.log_files)
+                        #TODO: Put syslog files in here, into [there_and_different]
+                self.purge_hidden_dir()
+                swisspy.print_and_log("Please version these files " +\
+                                      "and attempt the upload again.\n",
+                                      self.log_files, quiet=self.quiet)
+
+            else: # Transfer can go ahead!
+                if different_but_trusted:
+                    file_reports = []
+                    file_no = 1
+                    for dbt in different_but_trusted:
+                        header = "\n\tFile "+ str(file_no)
+                        file_reports.append(header)
+                        file_no += 1
+                        for f in dbt:
+                            file_report = "\n\t{0}:".format(f.path)
+                            for attr_name in ['size','modification_time','md5']:
+                                attr_value = getattr(f,attr_name)
+                                if attr_value:
+                                    file_report += "\n\t{0}: {1}".format(attr_name,
+                                                                         attr_value)
+                            file_reports.append(file_report)
+                        file_reports.append("\n")
+
+                    message = "The following {0} files already exist in {1}, but " \
+                              "will be transferred since trust source is set." \
+                              "\n".format(len(different_but_trusted), dest)
+                    log_list(message, file_reports, log_files = self.log_files)
+
                 if cleared_for_copy:
                     self.move_files(source, dest,
                                     cleared_for_copy, copied_files)

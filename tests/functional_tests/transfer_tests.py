@@ -349,13 +349,20 @@ class TrustSourceTest(FunctionalTest):
 
         # Check the source has gone
         self.assertFalse(os.path.exists(file_source))
-        # Check the destination
+
+        # Check the destination has not been overwritten, and the file has
+        # been moved to pf.
         with open(file_dest, 'r') as f:
             file_contents = [l.strip() for l in f.readlines()]
         for c in file_contents:
             self.assertTrue('67890' in c)
         self.assertTrue(os.path.exists(dir_problem))
 
+        # Check logs
+        expected = ["The following 1 files already exist in " + dir_dest,
+                    "the transfer was unable to continue.",
+                    "Please version these files and attempt the upload again"]
+        self.check_in_logs('a_dir', expected)
 
 
 
