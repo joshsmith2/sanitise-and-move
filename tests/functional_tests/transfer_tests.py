@@ -174,9 +174,12 @@ class FileTransferTest(FunctionalTest):
         for c in changed_paths:
             self.assertTrue(os.path.exists(c), c + " does not exist")
 
+class ResourceForkTest(FunctionalTest):
+
     def test_do_not_error_on_missing_resource_forks(self):
         fork_dir_source = os.path.join(self.source, 'fork_dir')
         fork_dir_dest = os.path.join(self.dest, 'fork_dir')
+        os.mkdir(fork_dir_source)
         os.mkdir(fork_dir_dest)
         s = self.minimal_object()
 

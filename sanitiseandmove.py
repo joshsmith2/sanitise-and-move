@@ -857,33 +857,24 @@ class Sanitisation:
                               "\n\tFiles transferred:\n",
                               self.log_files, quiet=self.quiet)
         for f in files:
+
             if source in f:
                 file_path = self.strip_hidden([f], source + '/')[0]
             else:
                 file_path = f
             target = os.path.join(dest,file_path)
-            try:
-                shutil.move(f, target)
-            except shutil.Error as e:
-                self.error_list.append(e)
-                return
-            except IOError as e:
-                if e.errno == 2: # No such file or directory
-                    # If we can't find the file and it's a resource fork,
-                    # delete it.
-                    if os.path.basename(file_path)[:2] == "._":
-                        if os.path.exists(f):
-                            os.remove(f)
-                    else:
-                        raise
+            if os.path.exists(f): # Guards against resource fork disappearance
+                try:
+                    shutil.move(f, target)
+                except shutil.Error as e:
+                    self.error_list.append(e)
+                    return
                 else:
-                    raise
-            else:
-                copied_files.append(file_path)
-                swisspy.print_and_log("\t" + file_path + "\n",
-                                      self.log_files,
-                                      ts=None,
-                                      quiet=self.quiet)
+                    copied_files.append(file_path)
+                    swisspy.print_and_log("\t" + file_path + "\n",
+                                          self.log_files,
+                                          ts=None,
+                                          quiet=self.quiet)
 
 def main(s):
     """ Call the requisite functions of s, a Sanitisation object"""
@@ -991,7 +982,7 @@ if __name__ == '__main__':
                      target=args.target,
                      temp_log_file=args.temp_log_file,
                      rename=args.dorename,
-                     trust_source=args.trust_source
+                     trust_source=args.trust_source,
                      )
     try:
         main(s)
