@@ -867,8 +867,6 @@ class Sanitisation:
                                       ts=None,
                                       quiet=self.quiet)
 
-
-
 def main(s):
     """ Call the requisite functions of s, a Sanitisation object"""
 

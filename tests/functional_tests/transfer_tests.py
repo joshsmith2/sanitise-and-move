@@ -324,6 +324,40 @@ class TrustSourceTest(FunctionalTest):
         self.assertFalse(os.path.exists(dir_to_move))
         self.assertTrue(os.path.exists(dest_file))
 
+    def test_transfer_fails_if_file_to_move_is_smaller_than_on_archive(self):
+        dir_source = os.path.join(self.to_archive, 'a_dir')
+        dir_dest = os.path.join(self.dest, 'a_dir')
+        dir_problem = os.path.join(self.problem_files, 'a_dir')
+        file_source = os.path.join(dir_source, 'a_file')
+        file_dest = os.path.join(dir_dest, 'a_file')
+
+        # Create dir to move
+        os.mkdir(dir_source)
+        with open(file_source, 'w') as f:
+            f.write('1234567890')
+        shutil.copytree(dir_source, dir_dest)
+
+        self.assertTrue(os.path.exists(file_dest))
+
+        # Now make the source smaller
+        with open(file_source, 'w') as f:
+            f.write('12345')
+
+        s = self.minimal_object()
+        s.trust_source = True
+        main(s)
+
+        # Check the source has gone
+        self.assertFalse(os.path.exists(file_source))
+        # Check the destination
+        with open(file_dest, 'r') as f:
+            file_contents = [l.strip() for l in f.readlines()]
+        for c in file_contents:
+            self.assertTrue('67890' in c)
+        self.assertTrue(os.path.exists(dir_problem))
+
+
+
 
 if __name__ == '__main__':
     unittest.main()
