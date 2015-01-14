@@ -364,7 +364,44 @@ class TrustSourceTest(FunctionalTest):
                     "Please version these files and attempt the upload again"]
         self.check_in_logs('a_dir', expected)
 
+    def test_transfer_suceeds_if_file_to_move_is_larger_than_on_archive(self):
+        dir_source = os.path.join(self.to_archive, 'a_dir')
+        dir_dest = os.path.join(self.dest, 'a_dir')
+        dir_problem = os.path.join(self.problem_files, 'a_dir')
+        file_source = os.path.join(dir_source, 'a_file')
+        file_dest = os.path.join(dir_dest, 'a_file')
 
+        # Create dir to move
+        os.mkdir(dir_source)
+        with open(file_source, 'w') as f:
+            f.write('12345')
+        shutil.copytree(dir_source, dir_dest)
+
+        self.assertTrue(os.path.exists(file_dest))
+
+        # Now make the source smaller
+        with open(file_source, 'w') as f:
+            f.write('1234567890')
+
+        s = self.minimal_object()
+        s.trust_source = True
+        main(s)
+
+        # Check the source has gone
+        self.assertFalse(os.path.exists(file_source))
+
+        # Check the destination has been overwritten, and the file has
+        # been moved to pf.
+        with open(file_dest, 'r') as f:
+            file_contents = [l.strip() for l in f.readlines()]
+        for c in file_contents:
+            self.assertTrue('67890' in c)
+        self.assertFalse(os.path.exists(dir_problem))
+
+        # Check logs
+        expected = ["The following 1 files already exist in " + dir_dest,
+                    "will be transferred since trust source is set."]
+        self.check_in_logs('a_dir', expected)
 
 if __name__ == '__main__':
     unittest.main()
