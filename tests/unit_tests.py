@@ -1,8 +1,16 @@
 #!/usr/bin/python
 __author__ = 'joshsmith'
 
+import os
+import sys
 import unittest
-from sanitiseandmove import *
+# Import sanitiseandmove
+try:
+    from sanitiseandmove import *
+except ImportError:
+    sam_dirname = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.append(sam_dirname)
+    from sanitiseandmove import *
 
 class ObjectTest(unittest.TestCase):
 

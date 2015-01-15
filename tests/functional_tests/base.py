@@ -2,9 +2,19 @@
 
 import unittest
 import os
+import sys
 import inspect
 import threading
-from sanitiseandmove import *
+
+# Import sanitiseandmove
+try:
+        from sanitiseandmove import *
+except ImportError:
+        sam_dirname = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        sys.path.append(sam_dirname)
+        from sanitiseandmove import *
+
+
 
 def make_dir_if_not_exists(dir):
     try:

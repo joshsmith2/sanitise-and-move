@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from base import *
 import unittest
 
@@ -35,3 +37,5 @@ class RemoveUnwantedFilesTest(FunctionalTest):
 
         self.assertFalse(os.path.exists(ds_dest))
 
+if __name__ == '__main__':
+    unittest.main()
