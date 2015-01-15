@@ -26,6 +26,7 @@ import subprocess as sp
 import argparse
 from string import whitespace
 from threading import Event
+from time import ctime
 
 class File:
     """Used to define a file which exists in source and dest
@@ -47,8 +48,12 @@ class File:
                  md5=""):
         self.path = path
         self.size = size
-        self.m_time = m_time
+        self.m_time_secs = m_time
         self.md5 = md5
+
+        self.modification_time = None
+        if self.m_time_secs:
+            self.modification_time = ctime(m_time)
 
 def log_list(human_header,  the_list,
              syslog_header="", log_files=[], syslog_files=[],
@@ -203,6 +208,9 @@ def get_arguments():
     p.add_argument('--temp-log-file', dest='temp_log_file', metavar='PATH',
                    default="/tmp/saniTempLog.log",
                    help="A file to write temporary log information to.")
+    p.add_argument('--trust-source', dest='trust_source', action='store_true',
+                   default=False, help="Transfer all files from source "
+                                       "regardless of mod time. Use with caution.")
     #TODO: What does this store?
     return p.parse_args()
 
@@ -218,7 +226,8 @@ class Sanitisation:
                  rename=False, rename_log_dir=None,
                  temp_log_file="/tmp/saniTempLog.log",
                  target='.', files_to_delete=['.DS_Store', '._.DS_Store'],
-                 test_suite=False, create_pid=True):
+                 test_suite=False, create_pid=True,
+                 trust_source=True):
 
         self.target = target
 
@@ -266,6 +275,7 @@ class Sanitisation:
         self.quiet = quiet
         self.rename = rename
         self.test_suite = test_suite
+        self.trust_source = trust_source
 
         # Paths - e.g to log files
         self.error_log_file_name = error_log_file_name
@@ -399,10 +409,12 @@ class Sanitisation:
 
         """
         existing_differing_files = [] #Files which already exist in dest, and differ from any uploaded files with the same name. If this is not empty by the end of the walk, source will not be copied
+        different_but_trusted = []
         existing_same_files = [] #Files which exist in the destination but have the same modification time and size as the file to be moved.
         cleared_for_copy = [] # Array of directories which can safely be copied as long as no clashes are found. Returned if and only if existing_differing_files is empty.
         copied_files = [] # Array of files which made it.
         empty_dirs = []
+
         #TODO: Put the variables above into the docstring
         source_to_log = source.split('/')[-1]
         prefix = source[:-len(source_to_log)]
@@ -445,30 +457,44 @@ class Sanitisation:
                     if os.path.exists(dest_file.path):
                         #Get attributes for source and dest files
                         source_file.size = os.path.getsize(source_file.path)
-                        source_file.m_time = swisspy.get_mod_time(source_file.path)
+                        source_file.m_time_secs = os.path.getmtime(source_file.path)
+                        source_file.modification_time = ctime(source_file.m_time_secs)
+
                         dest_file.size = os.path.getsize(dest_file.path)
-                        dest_file.m_time = swisspy.get_mod_time(dest_file.path)
+                        dest_file.m_time_secs = os.path.getmtime(dest_file.path)
+                        dest_file.modification_time = ctime(dest_file.m_time_secs)
 
                         # If size and mod time are the same, so are the files.
                         if source_file.size == dest_file.size and \
-                           source_file.m_time == dest_file.m_time:
+                           source_file.m_time_secs == dest_file.m_time_secs:
                             existing_same_files.append(source_file)
                         else:
-                            # If the sizes are different, so are the files.
-                            if source_file.size != dest_file.size:
+                            if source_file.size < dest_file.size:
                                 existing_differing_files.append((source_file,
-                                                               dest_file))
-                            # If the sizes are the same, but m_time differs,
-                            # do an md5 check.
-                            elif source_file.m_time != dest_file.m_time:
-                                source_file.md5 = swisspy.get_md5(source_file.path)
-                                dest_file.md5 = swisspy.get_md5(dest_file.path)
-                                # If the md5s differ, so do the files
-                                if source_file.md5 != dest_file.md5:
-                                    existing_differing_files.append((source_file,
-                                                                   dest_file))
+                                                                 dest_file))
+
+                            # If the sizes are different, so are the files.
+                            if source_file.size >= dest_file.size:
+                                if self.trust_source:
+                                    different_but_trusted.append((source_file,
+                                                                  dest_file))
+                                    cleared_for_copy.append(source_file.path)
                                 else:
-                                    existing_same_files.append(source_file)
+                                    existing_differing_files.append((source_file,
+                                                                     dest_file))
+
+                            # If the sizes are the same, but m_time differs,
+                            # do an md5 check. Skip if trust_source is on.
+                            elif not self.trust_source:
+                                if source_file.m_time_secs != dest_file.m_time_secs:
+                                    source_file.md5 = swisspy.get_md5(source_file.path)
+                                    dest_file.md5 = swisspy.get_md5(dest_file.path)
+                                    # If the md5s differ, so do the files
+                                    if source_file.md5 != dest_file.md5:
+                                        existing_differing_files.append((source_file,
+                                                                       dest_file))
+                                    else:
+                                        existing_same_files.append(source_file)
                     else:
                         cleared_for_copy.append(source_file.path)
 
@@ -490,40 +516,51 @@ class Sanitisation:
                     #edf is a tuple of source and dest files, so:
                     for f in edf:
                         file_report = "\n\t{0}:".format(f.path)
-                        for attr_name in ['size','m_time','md5']:
+                        for attr_name in ['size','modification_time','md5']:
                             attr_value = getattr(f,attr_name)
                             if attr_value:
                                 file_report += "\n\t{0}: {1}".format(attr_name,
                                                                      attr_value)
                         file_reports.append(file_report)
                     file_reports.append("\n")
-                log_list("Unable to move {0}. The following {1} files "
-                         "already exist in {2}: "
-                         "\n".format(source, len(existing_differing_files),
-                                     dest),
-                        file_reports,
-                        log_files = self.log_files)
+
+                message = "The following {0} files already exist in {1}; " \
+                          "the transfer was unable to continue." \
+                          "\n".format(len(existing_differing_files), dest)
+
+                log_list(message, file_reports, log_files = self.log_files)
                         #TODO: Put syslog files in here, into [there_and_different]
                 self.purge_hidden_dir()
                 swisspy.print_and_log("Please version these files " +\
                                       "and attempt the upload again.\n",
                                       self.log_files, quiet=self.quiet)
-            else:
+
+            else: # Transfer can go ahead!
+                if different_but_trusted:
+                    file_reports = []
+                    file_no = 1
+                    for dbt in different_but_trusted:
+                        header = "\n\tFile "+ str(file_no)
+                        file_reports.append(header)
+                        file_no += 1
+                        for f in dbt:
+                            file_report = "\n\t{0}:".format(f.path)
+                            for attr_name in ['size','modification_time','md5']:
+                                attr_value = getattr(f,attr_name)
+                                if attr_value:
+                                    file_report += "\n\t{0}: {1}".format(attr_name,
+                                                                         attr_value)
+                            file_reports.append(file_report)
+                        file_reports.append("\n")
+
+                    message = "The following {0} files already exist in {1}, but " \
+                              "will be transferred since trust source is set." \
+                              "\n".format(len(different_but_trusted), dest)
+                    log_list(message, file_reports, log_files = self.log_files)
+
                 if cleared_for_copy:
-                    swisspy.print_and_log("Moving files cleared for copy"
-                                          "\n\tFiles transferred:\n",
-                                          self.log_files, quiet=self.quiet)
-                    for c in cleared_for_copy:
-                        target = os.path.join(dest,c)
-                        try:
-                            shutil.move(c, target)
-                            copied_files.append(c)
-                            swisspy.print_and_log("\t" + c + "\n",
-                                                  self.log_files,
-                                                  ts=None,
-                                                  quiet=self.quiet)
-                        except shutil.Error as e:
-                            self.error_list.append(e)
+                    self.move_files(source, dest,
+                                    cleared_for_copy, copied_files)
 
                 if self.error_list:
                     log_list("An error occurred when moving some files to " \
@@ -773,7 +810,7 @@ class Sanitisation:
                                    new_path_to_log + '\n\n',
                                    self.log_files, ts=None, quiet=self.quiet)
 
-    def strip_hidden(self, from_list, to_remove):
+    def strip_hidden(self, from_list, to_remove=None):
         """Given a lost of files, remove a given common path from them - in this
          case, the path to the hidden directory.
 
@@ -815,98 +852,125 @@ class Sanitisation:
             pf = open(self.pid_file, 'w')
             pf.write(str(os.getpid()))
 
+    def move_files(self, source, dest, files, copied_files):
+        swisspy.print_and_log("Moving files cleared for copy"
+                              "\n\tFiles transferred:\n",
+                              self.log_files, quiet=self.quiet)
+        for f in files:
+
+            if source in f:
+                file_path = self.strip_hidden([f], source + '/')[0]
+            else:
+                file_path = f
+            target = os.path.join(dest,file_path)
+            if os.path.exists(f): # Guards against resource fork disappearance
+                try:
+                    shutil.move(f, target)
+                except shutil.Error as e:
+                    self.error_list.append(e)
+                    return
+                else:
+                    copied_files.append(file_path)
+                    swisspy.print_and_log("\t" + file_path + "\n",
+                                          self.log_files,
+                                          ts=None,
+                                          quiet=self.quiet)
+
 def main(s):
     """ Call the requisite functions of s, a Sanitisation object"""
 
     #Write a pid file
     if s.create_pid:
         s.write_pid()
-    
 
-    for folder in swisspy.immediate_subdirs(s.to_archive_dir):
-        deleted_files = []
-        if s.rename:
-            if not s.rename_log_dir:
-                swisspy.print_and_log("Please specify a directory to log "
-                                      "renamed files to (usually on dest.)",
-                                      s.log_files, quiet=s.quiet)
-                sys.exit(1)
-            rename_log_file = os.path.join(s.rename_log_dir, folder + ".txt")
-        else:
-            rename_log_file = ""
-        folder_start_path = os.path.join(s.to_archive_dir, folder)
-        #Check the directory to be copied isn't still being written to:
-        if swisspy.dir_being_written_to(folder_start_path):
-                swisspy.print_and_log(folder + " is being written to. "
-                                               "Skipping this time.",
-                                  [s.temp_log_file], ts="long", quiet=s.quiet)
-                continue
-        log_folder = os.path.join(s.illegal_log_dir, folder)
-        if not os.path.exists(log_folder):
-            os.mkdir(log_folder)
-        log_path =  os.path.join(log_folder,
-                                 swisspy.time_stamp('short') + ".log")
-        #A list of <260 char files to be logged to
-        s.log_files = [log_path[:259]]
-        swisspy.print_and_log("Processing " + folder + "\n",
-                              s.log_files, quiet=s.quiet)
-        # Move everything to the hidden folder, unless it's already there,
-        # in which case move it to Problem Files
-        if folder in swisspy.immediate_subdirs(s.the_root):
-            move_to = os.path.join(s.problem_dir, folder)
-            swisspy.print_and_log(str(folder) + " is already being processed."
-                                  "It has been moved to " + move_to,
+    try:
+        folder = swisspy.immediate_subdirs(s.to_archive_dir)[0]
+    except IndexError: #'To Archive dir is empty"
+        return
+
+    deleted_files = []
+    if s.rename:
+        if not s.rename_log_dir:
+            swisspy.print_and_log("Please specify a directory to log "
+                                  "renamed files to (usually on dest.)",
                                   s.log_files, quiet=s.quiet)
-            shutil.move(folder_start_path, move_to)
-            continue
-        else:
-            shutil.move(folder_start_path, os.path.join(s.the_root,folder))
-            s.moved_to_hidden.set()
+            sys.exit(1)
+        rename_log_file = os.path.join(s.rename_log_dir, folder + ".txt")
+    else:
+        rename_log_file = ""
+    folder_start_path = os.path.join(s.to_archive_dir, folder)
+    #Check the directory to be copied isn't still being written to:
+    if swisspy.dir_being_written_to(folder_start_path):
+            swisspy.print_and_log(folder + " is being written to. "
+                                           "Skipping this time.",
+                              [s.temp_log_file], ts="long", quiet=s.quiet)
+            return
+    log_folder = os.path.join(s.illegal_log_dir, folder)
+    if not os.path.exists(log_folder):
+        os.mkdir(log_folder)
+    log_path =  os.path.join(log_folder,
+                             swisspy.time_stamp('short') + ".log")
+    #A list of <260 char files to be logged to
+    s.log_files = [log_path[:259]]
+    swisspy.print_and_log("Processing " + folder + "\n",
+                          s.log_files, quiet=s.quiet)
+    # Move everything to the hidden folder, unless it's already there,
+    # in which case move it to Problem Files
+    if folder in swisspy.immediate_subdirs(s.the_root):
+        move_to = os.path.join(s.problem_dir, folder)
+        swisspy.print_and_log(str(folder) + " is already being processed."
+                              "It has been moved to " + move_to,
+                              s.log_files, quiet=s.quiet)
+        shutil.move(folder_start_path, move_to)
+        return
+    else:
+        shutil.move(folder_start_path, os.path.join(s.the_root,folder))
+        s.moved_to_hidden.set()
 
-        #Sanitise the directory itself, and update 'folder' if a change is made
-        s.rename_to_clean(folder, s.the_root, 'dir', rename_log_file)
-        if sanitise(folder)['out_string'] != folder:
-            folder = sanitise(folder)['out_string']
-        target_path = os.path.join(s.the_root, folder)
-        s.errors_found = False
+    #Sanitise the directory itself, and update 'folder' if a change is made
+    s.rename_to_clean(folder, s.the_root, 'dir', rename_log_file)
+    if sanitise(folder)['out_string'] != folder:
+        folder = sanitise(folder)['out_string']
+    target_path = os.path.join(s.the_root, folder)
+    s.errors_found = False
 
-        for path, dirs, files in os.walk(target_path, topdown=False):
-            #Sanitise file names
-            for f in files:
-                s.rename_to_clean(f, path, 'file', rename_log_file)
-                if f in s.files_to_delete:
-                    full_path = os.path.join(path,f)
-                    try:
-                        os.remove(full_path)
-                        deleted_files.append(f)
-                    except Exception as e:
-                        msg = "Unable to remove file {0} \n " \
-                              "Error details: {1}\n".format(f, str(e))
-                        swisspy.print_and_log(msg, s.log_files, quiet=s.quiet)
-            #Sanitise directory names
-            for d in dirs:
-                s.rename_to_clean(d, path, 'dir', rename_log_file)
+    for path, dirs, files in os.walk(target_path, topdown=False):
+        #Sanitise file names
+        for f in files:
+            s.rename_to_clean(f, path, 'file', rename_log_file)
+            if f in s.files_to_delete:
+                full_path = os.path.join(path,f)
+                try:
+                    os.remove(full_path)
+                    deleted_files.append(f)
+                except Exception as e:
+                    msg = "Unable to remove file {0} \n " \
+                          "Error details: {1}\n".format(f, str(e))
+                    swisspy.print_and_log(msg, s.log_files, quiet=s.quiet)
+        #Sanitise directory names
+        for d in dirs:
+            s.rename_to_clean(d, path, 'dir', rename_log_file)
 
-        if not s.errors_found or s.rename:
-            passFolder = os.path.join(s.pass_dir, folder)
-            msg = "Finished sanitising {0}. Moving to {1}\n".format(folder,
-                                                                    s.pass_dir)
-            swisspy.print_and_log(msg, s.log_files, quiet=s.quiet)
-            s.move_and_merge(target_path, passFolder)
+    if not s.errors_found or s.rename:
+        passFolder = os.path.join(s.pass_dir, folder)
+        msg = "Finished sanitising {0}. Moving to {1}\n".format(folder,
+                                                                s.pass_dir)
+        swisspy.print_and_log(msg, s.log_files, quiet=s.quiet)
+        s.move_and_merge(target_path, passFolder)
 
-        else:
-            try:
-                shutil.move(target_path, s.problem_dir)
-                swisspy.print_and_log ("{0} has been moved to" \
-                                   "{1}.\n".format(folder, s.problem_dir),
-                                   s.log_files, quiet=s.quiet)
+    else:
+        try:
+            shutil.move(target_path, s.problem_dir)
+            swisspy.print_and_log ("{0} has been moved to" \
+                               "{1}.\n".format(folder, s.problem_dir),
+                               s.log_files, quiet=s.quiet)
 
-            except shutil.Error as e:
-                msg = "Unable to move {0} to {1} - it may already exist in that " \
-                      "location.\nIf you need to archive a changed version of " \
-                      "this file, please rename it appropriately and retry.\n" \
-                      "Error: {2}\n".format(folder, s.problem_dir, e)
-                swisspy.print_and_log (msg, s.log_files, quiet=s.quiet)
+        except shutil.Error as e:
+            msg = "Unable to move {0} to {1} - it may already exist in that " \
+                  "location.\nIf you need to archive a changed version of " \
+                  "this file, please rename it appropriately and retry.\n" \
+                  "Error: {2}\n".format(folder, s.problem_dir, e)
+            swisspy.print_and_log (msg, s.log_files, quiet=s.quiet)
 
 if __name__ == '__main__':
     args = get_arguments()
@@ -917,7 +981,8 @@ if __name__ == '__main__':
                      quiet=args.quiet,
                      target=args.target,
                      temp_log_file=args.temp_log_file,
-                     rename=args.dorename
+                     rename=args.dorename,
+                     trust_source=args.trust_source,
                      )
     try:
         main(s)

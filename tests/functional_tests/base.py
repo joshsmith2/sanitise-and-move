@@ -2,9 +2,19 @@
 
 import unittest
 import os
+import sys
 import inspect
 import threading
-from sanitiseandmove import *
+
+# Import sanitiseandmove
+try:
+        from sanitiseandmove import *
+except ImportError:
+        sam_dirname = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        sys.path.append(sam_dirname)
+        from sanitiseandmove import *
+
+
 
 def make_dir_if_not_exists(dir):
     try:
@@ -81,6 +91,12 @@ class SanitiseTest(unittest.TestCase):
         self.log_renamed = os.path.join(self.log, 'renamed')
         make_dir_if_not_exists(self.log_syslog)
         make_dir_if_not_exists(self.log_renamed)
+
+    def make_test_folder(self, dir_name, file_name=None):
+        dir_path = os.path.join(self.to_archive, dir_name)
+        file_path = os.path.join(dir_path, file_name)
+        os.mkdir(dir_path)
+        return {'dir': dir_path, 'file':file_path}
 
     def tearDown(self):
         # Wait for running test threads to finish

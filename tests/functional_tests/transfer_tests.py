@@ -20,7 +20,7 @@ class FileTransferTest(FunctionalTest):
         assert not os.path.exists(os.path.join(self.dest, 'orphan.txt'))
         assert not os.listdir(os.path.join(self.source, 'Logs'))
 
-    def test_clean_files_leave_souce_and_get_to_dest_safely(self):
+    def test_clean_files_leave_source_and_get_to_dest_safely(self):
         container_path = os.path.join(self.to_archive, 'new_dir')
         os.mkdir(container_path)
         content_path = os.path.join(container_path, 'file_to_transfer.txt')
@@ -47,8 +47,6 @@ class FileTransferTest(FunctionalTest):
                                                    'test_file'))
         correct_mod_time = swisspy.get_mod_time(os.path.join(full_container,
                                                              'test_file'))
-        os.mkdir(os.path.join(self.to_archive,
-                              'empty_container'))
 
         s = self.minimal_object()
         main(s)
@@ -176,6 +174,20 @@ class FileTransferTest(FunctionalTest):
         for c in changed_paths:
             self.assertTrue(os.path.exists(c), c + " does not exist")
 
+class ResourceForkTest(FunctionalTest):
+
+    def test_do_not_error_on_missing_resource_forks(self):
+        fork_dir_source = os.path.join(self.source, 'fork_dir')
+        fork_dir_dest = os.path.join(self.dest, 'fork_dir')
+        os.mkdir(fork_dir_source)
+        os.mkdir(fork_dir_dest)
+        s = self.minimal_object()
+
+        # Should not raise IOError
+        s.move_files(fork_dir_source, fork_dir_dest, ['._butt'], [])
+
+        # TEST FILES TRANSFERRED NOT PRINTED
+
     # Check a script being run again won't interrupt it
 #    def test_cannot_run_script_twice(self):
 #        large_file = os.path.join(self.tests_dir, 'test_file_large')
@@ -225,10 +237,6 @@ class FileTransferTest(FunctionalTest):
 #        self.assertFalse(exists_in(self.to_archive, 'dir_1'))
 
 
-
-
-    # Delete .DS_Store files
-
     # Error on any existing different files
 
     # Transfer any new files in existing directories
@@ -243,7 +251,160 @@ class FileTransferTest(FunctionalTest):
 
     # Remove resource forks properly
 
+    #
 
+class TrustSourceTest(FunctionalTest):
+
+    def test_trust_source_works_and_overwrites_files(self):
+        # Make a directory twice, with two seperately created files
+        def create_test_dir(to_write):
+            os.mkdir(dir_to_move)
+            with open (source_file, 'w') as f:
+                f.write(to_write)
+
+        dir_to_move = os.path.join(self.to_archive, 'Bunsen')
+        source_file = os.path.join(dir_to_move, 'Berna.txt')
+        dest_file = os.path.join(self.dest, 'Bunsen', 'Berna.txt')
+        create_test_dir("BANGABANG")
+
+        first_mod_time = os.path.getmtime(source_file)
+
+        s = self.minimal_object()
+        main(s)
+
+        # Check that's moved the file
+        self.assertFalse(os.path.exists(source_file))
+        self.assertFalse(os.path.exists(dir_to_move))
+        self.assertTrue(os.path.exists(dest_file))
+
+        with open(dest_file, 'r') as f:
+            dest_contents = f.readlines()
+
+        self.assertTrue("BANGABANG" in dest_contents)
+
+        create_test_dir("HANGABANG")
+        second_mod_time = os.path.getmtime(source_file)
+
+        self.assertTrue(second_mod_time > first_mod_time)
+
+        t = self.minimal_object()
+        t.trust_source = True
+        main(t)
+
+        dest_mod_time = os.path.getmtime(dest_file)
+        with open(dest_file, 'r') as f:
+            dest_contents = f.readlines()
+
+        self.assertTrue("HANGABANG" in dest_contents)
+        self.assertEqual(dest_mod_time, second_mod_time)
+
+    def test_empty_directories_dont_overwrite_full_ones(self):
+
+        def create_test_dir(to_write):
+            os.mkdir(dir_to_move)
+            with open (source_file, 'w') as f:
+                f.write(to_write)
+
+        dir_to_move = os.path.join(self.to_archive, 'test_dir')
+        source_file = os.path.join(dir_to_move, 'Keepme.txt')
+        dest_file = os.path.join(self.dest, 'test_dir', 'Keepme.txt')
+        create_test_dir("VALUABLE_INFO")
+
+        s = self.minimal_object()
+        main(s)
+
+        # Check that's moved the file
+        self.assertFalse(os.path.exists(source_file))
+        self.assertFalse(os.path.exists(dir_to_move))
+        self.assertTrue(os.path.exists(dest_file))
+
+        os.mkdir(dir_to_move)
+
+        t = self.minimal_object()
+        t.trust_source = True
+        main(t)
+
+        self.assertFalse(os.path.exists(dir_to_move))
+        self.assertTrue(os.path.exists(dest_file))
+
+    def test_transfer_fails_if_file_to_move_is_smaller_than_on_archive(self):
+        dir_source = os.path.join(self.to_archive, 'a_dir')
+        dir_dest = os.path.join(self.dest, 'a_dir')
+        dir_problem = os.path.join(self.problem_files, 'a_dir')
+        file_source = os.path.join(dir_source, 'a_file')
+        file_dest = os.path.join(dir_dest, 'a_file')
+
+        # Create dir to move
+        os.mkdir(dir_source)
+        with open(file_source, 'w') as f:
+            f.write('1234567890')
+        shutil.copytree(dir_source, dir_dest)
+
+        self.assertTrue(os.path.exists(file_dest))
+
+        # Now make the source smaller
+        with open(file_source, 'w') as f:
+            f.write('12345')
+
+        s = self.minimal_object()
+        s.trust_source = True
+        main(s)
+
+        # Check the source has gone
+        self.assertFalse(os.path.exists(file_source))
+
+        # Check the destination has not been overwritten, and the file has
+        # been moved to pf.
+        with open(file_dest, 'r') as f:
+            file_contents = [l.strip() for l in f.readlines()]
+        for c in file_contents:
+            self.assertTrue('67890' in c)
+        self.assertTrue(os.path.exists(dir_problem))
+
+        # Check logs
+        expected = ["The following 1 files already exist in " + dir_dest,
+                    "the transfer was unable to continue.",
+                    "Please version these files and attempt the upload again"]
+        self.check_in_logs('a_dir', expected)
+
+    def test_transfer_suceeds_if_file_to_move_is_larger_than_on_archive(self):
+        dir_source = os.path.join(self.to_archive, 'a_dir')
+        dir_dest = os.path.join(self.dest, 'a_dir')
+        dir_problem = os.path.join(self.problem_files, 'a_dir')
+        file_source = os.path.join(dir_source, 'a_file')
+        file_dest = os.path.join(dir_dest, 'a_file')
+
+        # Create dir to move
+        os.mkdir(dir_source)
+        with open(file_source, 'w') as f:
+            f.write('12345')
+        shutil.copytree(dir_source, dir_dest)
+
+        self.assertTrue(os.path.exists(file_dest))
+
+        # Now make the source smaller
+        with open(file_source, 'w') as f:
+            f.write('1234567890')
+
+        s = self.minimal_object()
+        s.trust_source = True
+        main(s)
+
+        # Check the source has gone
+        self.assertFalse(os.path.exists(file_source))
+
+        # Check the destination has been overwritten, and the file has
+        # been moved to pf.
+        with open(file_dest, 'r') as f:
+            file_contents = [l.strip() for l in f.readlines()]
+        for c in file_contents:
+            self.assertTrue('67890' in c)
+        self.assertFalse(os.path.exists(dir_problem))
+
+        # Check logs
+        expected = ["The following 1 files already exist in " + dir_dest,
+                    "will be transferred since trust source is set."]
+        self.check_in_logs('a_dir', expected)
 
 if __name__ == '__main__':
     unittest.main()
