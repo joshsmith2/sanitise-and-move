@@ -3,7 +3,7 @@
 from base import *
 import unittest
 
-class PickUpProjectsTest(FunctionalTest):
+class PickUpProjectsTest(SanitiseTest):
 
     def test_only_one_project_picked_up_at_a_single_run(self):
         project_1 = os.path.join(self.to_archive, "p1")
@@ -21,7 +21,7 @@ class PickUpProjectsTest(FunctionalTest):
         main(s)
         # Check no logs
 
-class RemoveUnwantedFilesTest(FunctionalTest):
+class RemoveUnwantedFilesTest(SanitiseTest):
 
     def test_DS_Store_files_deleted(self):
         source_dir = os.path.join(self.to_archive, 'moveme')

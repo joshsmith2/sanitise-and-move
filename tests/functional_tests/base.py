@@ -77,7 +77,7 @@ class SanitiseTest(unittest.TestCase):
 
         # DEST:
         #self.dest = os.path.join(self.tests_dir, 'test_dest') # Local
-        self.dest = "/Volumes/HGSL-Archive/josh_test/test-dest" # Remote
+        self.dest = "/Volumes/HGSL-Archive/josh_test/dest" # Remote
         self.mount_name = "HGSL-Archive"
         if sys.platform == 'darwin': # Running on mac
             self.mount_dir = '/Volumes'
@@ -130,7 +130,7 @@ class SanitiseTest(unittest.TestCase):
     def check_in_logs(self, folder, messages):
         self.get_log_contents(folder)
         for m in messages:
-            self.assertTrue(m in '\n'.join(self.log_contents.itervalues()))
+            self.assertTrue(m in '\n'.join(self.log_contents))
 
     def minimal_object(self):
         """Create and return a sanitisation object which will work, with

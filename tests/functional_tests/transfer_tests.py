@@ -3,7 +3,7 @@
 from base import *
 import unittest
 
-class FileTransferTest(FunctionalTest):
+class FileTransferTest(SanitiseTest):
 
     def test_do_not_move_files_not_in_a_directory(self):
         orphan_file_path = os.path.join(self.to_archive, 'orphan.txt')
@@ -170,7 +170,7 @@ class FileTransferTest(FunctionalTest):
         for c in changed_paths:
             self.assertTrue(os.path.exists(c), c + " does not exist")
 
-class ResourceForkTest(FunctionalTest):
+class ResourceForkTest(SanitiseTest):
 
     def test_do_not_error_on_missing_resource_forks(self):
         fork_dir_source = os.path.join(self.source, 'fork_dir')
@@ -203,7 +203,7 @@ class ResourceForkTest(FunctionalTest):
 
     #
 
-class TrustSourceTest(FunctionalTest):
+class TrustSourceTest(SanitiseTest):
 
     def test_trust_source_works_and_overwrites_files(self):
         # Make a directory twice, with two seperately created files

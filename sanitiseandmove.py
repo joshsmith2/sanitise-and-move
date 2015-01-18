@@ -305,13 +305,13 @@ class Sanitisation:
         atexit.register(self.clean_up)
 
         # Set events to pass to other threads
-        self.moved_to_hidden = Event()
-        self.hidden_checked = Event()
+        self.started_transfer = Event()
 
         self.create_pid = create_pid
 
     def clean_up(self):
         """Run some cleanup tasks on unexpected exit"""
+        self.started_transfer.clear()
         #Close pid files, if they exist
         try:
             self.purge_hidden_dir()
@@ -422,6 +422,7 @@ class Sanitisation:
         #Check source itself before walking
         if not os.path.exists(dest):
             try:
+                self.started_transfer.set()
                 shutil.move(source, dest)
                 msg = "No errors found in new folder {0}. Folder moved to" \
                       "{1}\n".format(source_to_log, dest)
@@ -853,11 +854,11 @@ class Sanitisation:
             pf.write(str(os.getpid()))
 
     def move_files(self, source, dest, files, copied_files):
+        self.started_transfer.set()
         swisspy.print_and_log("Moving files cleared for copy"
                               "\n\tFiles transferred:\n",
                               self.log_files, quiet=self.quiet)
         for f in files:
-
             if source in f:
                 file_path = self.strip_hidden([f], source + '/')[0]
             else:
@@ -925,7 +926,6 @@ def main(s):
         return
     else:
         shutil.move(folder_start_path, os.path.join(s.the_root,folder))
-        s.moved_to_hidden.set()
 
     #Sanitise the directory itself, and update 'folder' if a change is made
     s.rename_to_clean(folder, s.the_root, 'dir', rename_log_file)
