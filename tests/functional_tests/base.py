@@ -117,6 +117,8 @@ class SanitiseTest(unittest.TestCase):
                 error_number = e[0]
                 if error_number == 2: #File doesn't exist
                     pass
+                elif error_number == 16: # Resource busy
+                    pass
                 else:
                     print str(e)
                     raise
@@ -127,10 +129,13 @@ class SanitiseTest(unittest.TestCase):
 
     # This only good for the standard use case where you want to check all the
     # logs as a whole.
-    def check_in_logs(self, folder, messages):
+    def check_in_logs(self, folder, messages, positive_test=True):
         self.get_log_contents(folder)
         for m in messages:
-            self.assertTrue(m in '\n'.join(self.log_contents))
+            if positive_test:
+                self.assertTrue(m in '\n'.join(self.log_contents))
+            else:
+                self.assertFalse(m in '\n'.join(self.log_contents))
 
     def minimal_object(self):
         """Create and return a sanitisation object which will work, with

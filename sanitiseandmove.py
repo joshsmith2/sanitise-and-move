@@ -423,12 +423,19 @@ class Sanitisation:
         if not os.path.exists(dest):
             try:
                 self.started_transfer.set()
-                shutil.move(source, dest)
-                msg = "No errors found in new folder {0}. Folder moved to" \
-                      "{1}\n".format(source_to_log, dest)
+                try:
+                    shutil.move(source, dest)
+                except Exception as e:
+                    msg = "A fatal error occurred while transferring: " + \
+                          str(e) + "\n"
+                    swisspy.print_and_log(msg, self.log_files,
+                                          quiet=self.quiet)
+                else:
+                    msg = "No errors found in new folder {0}. Folder moved to" \
+                          "{1}\n".format(source_to_log, dest)
 
-                swisspy.print_and_log(msg, self.log_files,
-                                      quiet=self.quiet)
+                    swisspy.print_and_log(msg, self.log_files,
+                                          quiet=self.quiet)
             except shutil.Error as e:
                 self.error_list.append(e)
                 msg = "One or more files failed while trying to move {0} " \
@@ -560,19 +567,19 @@ class Sanitisation:
                     log_list(message, file_reports, log_files = self.log_files)
 
                 if cleared_for_copy:
-                    self.move_files(source, dest,
-                                    cleared_for_copy, copied_files)
+                    try:
+                        self.move_files(source, dest,
+                                        cleared_for_copy, copied_files)
+                    except Exception as e:
+                        msg = "A fatal error occurred while transferring: " +\
+                              str(e) + "\n"
+                        swisspy.print_and_log(msg, self.log_files,
+                                              quiet=self.quiet)
 
-                if self.error_list:
-                    log_list("An error occurred when moving some files to " \
-                             " " + dest + ".\nError: ",
-                             str(self.error_list),
-                             log_files=self.log_files,
-                             syslog_files=[self.logstash_files['failed']])
-                else:
-                    swisspy.print_and_log("No transfer errors occurred. " +\
-                                          "Folder exists at " + dest + "\n\t",
-                                          self.log_files, quiet=self.quiet)
+                    else:
+                        swisspy.print_and_log("No transfer errors occurred. " +\
+                                              "Folder exists at " + dest + "\n\t",
+                                              self.log_files, quiet=self.quiet)
         if self.error_list:
             error = chain(self.error_list).next().args[0]
             all_sources = [e[0] for e in error]
@@ -731,10 +738,13 @@ class Sanitisation:
         """Iterate through self.error_list, retrying the transfer of any failed files"""
         if self.error_list:
             for e in self.error_list:
-                source_path = e[0]
-                dest_path = e[1]
-                new_errors = self.retry_transfer(source_path, dest_path,
-                                                 self.error_list)
+                try:
+                    source_path = e[0]
+                    dest_path = e[1]
+                    new_errors = self.retry_transfer(source_path, dest_path,
+                                                     self.error_list)
+                except:
+                    sys.exit(1)
                 return new_errors
 
     def rename_file(self, path_dict, prev_path, rename_log_file,
@@ -865,17 +875,12 @@ class Sanitisation:
                 file_path = f
             target = os.path.join(dest,file_path)
             if os.path.exists(f): # Guards against resource fork disappearance
-                try:
-                    shutil.move(f, target)
-                except shutil.Error as e:
-                    self.error_list.append(e)
-                    return
-                else:
-                    copied_files.append(file_path)
-                    swisspy.print_and_log("\t" + file_path + "\n",
-                                          self.log_files,
-                                          ts=None,
-                                          quiet=self.quiet)
+                shutil.move(f, target)
+                copied_files.append(file_path)
+                swisspy.print_and_log("\t" + file_path + "\n",
+                                      self.log_files,
+                                      ts=None,
+                                      quiet=self.quiet)
 
 def main(s):
     """ Call the requisite functions of s, a Sanitisation object"""
