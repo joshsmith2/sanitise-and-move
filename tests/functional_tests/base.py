@@ -71,8 +71,14 @@ class FunctionalTest(unittest.TestCase):
         make_dir_if_not_exists(self.problem_files)
 
         # DEST:
-        self.dest = os.path.join(self.tests_dir, 'test_dest') # Local
-        #self.dest = "/Volumes/HGSL-Archive/josh_test/test-dest" # Remote
+        #self.dest = os.path.join(self.tests_dir, 'test_dest') # Local
+        self.dest = "/Volumes/HGSL-Archive/josh_test/test-dest" # Remote
+        self.mount_name = "HGSL-Archive"
+        if sys.platform == 'darwin': # Running on mac
+            self.mount_dir = '/Volumes'
+        else:
+            self.mount_dir = '/mnt'
+        self.mount_path = os.path.join(self.mount_dir, self.mount_name)
         make_dir_if_not_exists(self.dest)
 
         # LOGS:
@@ -148,10 +154,14 @@ class FunctionalTest(unittest.TestCase):
         return folder_in_dest
 
     def get_log_contents(self, folder_name):
-        for log_file in os.listdir(os.path.join(self.logs, folder_name)):
-            log_path = os.path.join(self.logs, folder_name, log_file)
-            with open(log_path, 'r') as lp:
-                self.log_contents = lp.readlines()
+        logs = os.listdir(os.path.join(self.logs, folder_name))
+        if len(logs) == 0:
+            raise IOError("No logs were created")
+        else:
+            for log_file in os.listdir(os.path.join(self.logs, folder_name)):
+                log_path = os.path.join(self.logs, folder_name, log_file)
+                with open(log_path, 'r') as lp:
+                    self.log_contents = lp.readlines()
 
 if __name__ == '__main__':
     unittest.main()
