@@ -2,7 +2,6 @@
 __author__ = 'joshsmith'
 
 import os
-import sys
 import unittest
 # Import sanitiseandmove
 try:
