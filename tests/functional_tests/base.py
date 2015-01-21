@@ -76,8 +76,8 @@ class SanitiseTest(unittest.TestCase):
         make_dir_if_not_exists(self.problem_files)
 
         # DEST:
-        #self.dest = os.path.join(self.tests_dir, 'test_dest') # Local
-        self.dest = "/Volumes/HGSL-Archive/josh_test/dest" # Remote
+        self.dest = os.path.join(self.tests_dir, 'test_dest') # Local
+        #self.dest = "/Volumes/HGSL-Archive/josh_test/dest1" # Remote
         self.mount_name = "HGSL-Archive"
         if sys.platform == 'darwin': # Running on mac
             self.mount_dir = '/Volumes'

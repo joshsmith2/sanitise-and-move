@@ -12,13 +12,13 @@ class RetryTransferTest(SanitiseTest):
 
     def test_the_right_number_of_retries_are_attempted_if_transfer_fails(self):
         transfer_event = threading.Event()
-        test_dir_name = "test1"
+        test_dir_name = "test2"
         self.dest = '/Volumes/HGSL-Archive/josh_test'
         if os.path.exists(os.path.join(self.dest, test_dir_name)):
             try:
                 shutil.rmtree(os.path.join(self.dest, test_dir_name))
             except:
-                print "Oh dear. reosurce busy."
+                print "Oh dear. resource busy."
 
         self.make_test_folder(test_dir_name, 'test_file')
         large_file_source = os.path.join(self.tests_dir, 'test_file_1M')
