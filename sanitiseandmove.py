@@ -21,12 +21,12 @@ import os.path
 import shutil
 import sys
 import swisspy
-from itertools import chain
 import subprocess as sp
 import argparse
+import re
 from string import whitespace
-from threading import Event
 from time import ctime
+
 
 class File:
     """Used to define a file which exists in source and dest
@@ -225,7 +225,7 @@ class Sanitisation:
                  logstash_dir='/var/log/sanitisePathsSysLogs', oversize_log_file_name=None, quiet=False,
                  rename=False, rename_log_dir=None,
                  temp_log_file="/tmp/saniTempLog.log",
-                 target='.', files_to_delete=['.DS_Store', '._.DS_Store'],
+                 target='.', file_patterns_to_delete=['\.DS_Store', '\._*'],
                  test_suite=False, create_pid=True,
                  trust_source=True):
 
@@ -268,7 +268,7 @@ class Sanitisation:
         self.to_archive_dir = dirs['to_archive']
         self.transfer_error_dir = os.path.join(self.problem_dir,
                                                "_Transfer_Errors")
-        self.files_to_delete = files_to_delete
+        self.file_patterns_to_delete = file_patterns_to_delete
 
         # Switches
         self.case_sens = case_sens
@@ -851,15 +851,16 @@ def main(s):
         #Sanitise file names
         for f in files:
             s.rename_to_clean(f, path, 'file', rename_log_file)
-            if f in s.files_to_delete:
-                full_path = os.path.join(path,f)
-                try:
-                    os.remove(full_path)
-                    deleted_files.append(f)
-                except Exception as e:
-                    msg = "Unable to remove file {0} \n " \
-                          "Error details: {1}\n".format(f, str(e))
-                    swisspy.print_and_log(msg, s.log_files, quiet=s.quiet)
+            for pattern in s.file_patterns_to_delete:
+                if re.match(pattern, f):
+                    full_path = os.path.join(path,f)
+                    try:
+                        os.remove(full_path)
+                        deleted_files.append(f)
+                    except Exception as e:
+                        msg = "Unable to remove file {0} \n " \
+                              "Error details: {1}\n".format(f, str(e))
+                        swisspy.print_and_log(msg, s.log_files, quiet=s.quiet)
         #Sanitise directory names
         for d in dirs:
             s.rename_to_clean(d, path, 'dir', rename_log_file)

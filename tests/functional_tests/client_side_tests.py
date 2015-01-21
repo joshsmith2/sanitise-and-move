@@ -46,6 +46,8 @@ class RemoveUnwantedFilesTest(SanitiseTest):
 
         source_dir = os.path.join(self.to_archive, 'movemetoo')
         dest_dir = os.path.join(self.dest, 'movemetoo')
+        source_dir_2 = os.path.join(self.to_archive, '._move_this_dir')
+        dest_dir_2 = os.path.join(self.dest)
         good_files = ['file1.txt', 'a._file._bum']
         bad_files = ['._file1.txt', '._', '._DS_Store']
 
@@ -61,11 +63,9 @@ class RemoveUnwantedFilesTest(SanitiseTest):
             self.assertTrue(os.path.exists(os.path.join(dest_dir, gf)))
         for bf in bad_files:
             self.assertFalse(os.path.exists(os.path.join(dest_dir, bf)))
-        expected = ["3 resource forks deleted.",
-                    "The following files transferred successfully:"]
+        expected = ["The following files transferred successfully:"]
         expected.extend(good_files)
-        self.check_in_logs('moveme', expected)
-
+        self.check_in_logs('movemetoo', expected)
 
 
 if __name__ == '__main__':
