@@ -305,13 +305,16 @@ class Sanitisation:
         atexit.register(self.clean_up)
 
         # Set events to pass to other threads
-        self.started_transfer = Event()
+        self.scanned_source = None
+        self.started_transfer = None
+        self.pause_after_scan = None
 
         self.create_pid = create_pid
 
     def clean_up(self):
         """Run some cleanup tasks on unexpected exit"""
-        self.started_transfer.clear()
+        if self.started_transfer:
+            self.started_transfer.clear()
         #Close pid files, if they exist
         try:
             self.purge_hidden_dir()
@@ -422,7 +425,8 @@ class Sanitisation:
         #Check source itself before walking
         if not os.path.exists(dest):
             try:
-                self.started_transfer.set()
+                if self.started_transfer:
+                    self.started_transfer.set()
                 try:
                     shutil.move(source, dest)
                 except Exception as e:
@@ -452,6 +456,15 @@ class Sanitisation:
                                   " for existing files\n",
                                   self.log_files, quiet=self.quiet)
             for root, dirs, files in os.walk(source):
+
+                # These are threading events used when testing transfers - in
+                # this case to modify the file after it's been scanned and set
+                # for archive.
+                if self.scanned_source:
+                    self.scanned_source.set()
+                if self.pause_after_scan:
+                    self.pause_after_scan.wait(10)
+
                 #Starting from the deepest file
                 for f in files:
                     source_file = File(path=os.path.join(root,f))
@@ -758,7 +771,8 @@ class Sanitisation:
             pf.write(str(os.getpid()))
 
     def move_files(self, source, dest, files, copied_files):
-        self.started_transfer.set()
+        if self.started_transfer:
+            self.started_transfer.set()
         swisspy.print_and_log("Moving files cleared for copy"
                               "\n\tFiles transferred:\n",
                               self.log_files, quiet=self.quiet)

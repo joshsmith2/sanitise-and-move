@@ -66,3 +66,45 @@ def test_do_not_move_resource_forks_if_not_set(self):
 #        self.assertFalse(exists_in(self.hidden, 'dir_2'))
 #        self.assertTrue(exists_in(self.to_archive, 'dir_2'))
 #        self.assertFalse(exists_in(self.to_archive, 'dir_1'))
+
+
+# Aborted since we decided to delete the fuckers.
+    def test_missing_resource_forks_does_not_halt_transfer(self):
+        fork_dir_source = os.path.join(self.to_archive, 'fork_dir')
+        fork_dir_dest = os.path.join(self.dest, 'fork_dir')
+        os.mkdir(fork_dir_source)
+        os.mkdir(fork_dir_dest)
+        s = self.minimal_object()
+
+        test_files = ['file1', 'file2', '._file3', 'file3', 'file4']
+        condemned_fork = os.path.join(fork_dir_source, '._file2')
+        for test_file in test_files:
+            path = os.path.join(fork_dir_source, test_file)
+            with open(path, 'w') as f:
+                f.write("PRONGSPRONGSPRONGSPRONGSANDPRONGS")
+        with open(condemned_fork, 'w') as f:
+            f.write("PRONGSPRONGSPRONGSPRONGSANDPRONGS")
+
+        scanned_source = threading.Event()
+        started_transfer = threading.Event()
+        pause_after_scan = threading.Event()
+
+        s = self.minimal_object()
+        s.scanned_source = scanned_source
+        s.started_transfer = started_transfer
+        s.pause_after_scan = pause_after_scan
+        s.pause_after_scan.set()
+
+        transfer_thread = threading.Thread(name='main', target=main, args=(s,))
+        transfer_thread.start()
+        scanned_source.wait(10)
+
+        os.remove(os.path.join(fork_dir_source, '._file2'))
+        self.assertFalse(s.started_transfer.is_set())
+
+        transfer_thread.join()
+
+        self.assertFalse(self.check_in_logs('fork_dir', ["new"]))
+        for file in test_files:
+            self.assertTrue(os.path.exists(os.path.join(fork_dir_dest, file)))
+        self.assertFalse(os.path.exists(os.path.join(fork_dir_dest, '._file2')))

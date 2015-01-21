@@ -170,21 +170,6 @@ class FileTransferTest(SanitiseTest):
         for c in changed_paths:
             self.assertTrue(os.path.exists(c), c + " does not exist")
 
-class ResourceForkTest(SanitiseTest):
-
-    def test_do_not_error_on_missing_resource_forks(self):
-        fork_dir_source = os.path.join(self.source, 'fork_dir')
-        fork_dir_dest = os.path.join(self.dest, 'fork_dir')
-        os.mkdir(fork_dir_source)
-        os.mkdir(fork_dir_dest)
-        s = self.minimal_object()
-
-        # Should not raise IOError
-        s.move_files(fork_dir_source, fork_dir_dest, ['._butt'], [])
-
-        # TEST FILES TRANSFERRED NOT PRINTED
-
-
 
 
     # Error on any existing different files

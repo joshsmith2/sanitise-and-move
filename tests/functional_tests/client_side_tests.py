@@ -37,5 +37,36 @@ class RemoveUnwantedFilesTest(SanitiseTest):
 
         self.assertFalse(os.path.exists(ds_dest))
 
+    def test_resource_forks_get_deleted_from_source_when_dest_exists(self):
+        def create_files(list, path):
+            for f in list:
+                full_path = os.path.join(path, f)
+                with open(full_path, 'w') as wf:
+                    wf.write("PUN BANGLE, CRAN HANDLE, PIN TINGLE, CRIMBAFFLE")
+
+        source_dir = os.path.join(self.to_archive, 'movemetoo')
+        dest_dir = os.path.join(self.dest, 'movemetoo')
+        good_files = ['file1.txt', 'a._file._bum']
+        bad_files = ['._file1.txt', '._', '._DS_Store']
+
+        os.mkdir(source_dir)
+        os.mkdir(dest_dir)
+        create_files(good_files, source_dir)
+        create_files(bad_files, source_dir)
+
+        s = self.minimal_object()
+        main(s)
+
+        for gf in good_files:
+            self.assertTrue(os.path.exists(os.path.join(dest_dir, gf)))
+        for bf in bad_files:
+            self.assertFalse(os.path.exists(os.path.join(dest_dir, bf)))
+        expected = ["3 resource forks deleted.",
+                    "The following files transferred successfully:"]
+        expected.extend(good_files)
+        self.check_in_logs('moveme', expected)
+
+
+
 if __name__ == '__main__':
     unittest.main()
