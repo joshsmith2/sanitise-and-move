@@ -341,5 +341,20 @@ class TrustSourceTest(SanitiseTest):
                     "will be transferred since trust source is set."]
         self.check_in_logs('a_dir', expected)
 
+class RetryTest(SanitiseTest):
+
+    def test_failed_files_are_retried(self):
+        to_send = self.make_test_folder('sendme', 'sendy.txt')
+        with open(to_send['file'], 'w') as f:
+            f.write("Willies.")
+
+        s = self.minimal_object()
+        s.pass_dir = '/dev/null'
+        main(s)
+
+        messages = ['Retrying', 'try 2']
+        self.check_in_logs(to_send['dir'], messages)
+
+
 if __name__ == '__main__':
     unittest.main()

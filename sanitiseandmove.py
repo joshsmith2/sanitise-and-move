@@ -124,7 +124,8 @@ def sanitise(in_string, strip_trailing_spaces=True):
     """
     black_list = '' #Delete these characters. Currently empty.
     replace_list = [(':','-'), ('`','_'), ('\\','_'), ('/','_'), ('?','_'),
-                   ('"','_'), ('<','_'), ('>','-'), ('|','_'), ('*','_')]
+                   ('"','_'), ('<','_'), ('>','-'), ('|','_'), ('*','_'),
+                   ('$','_')]
     strip_from_end = [' '] # Strip any of these characters from the end of the string
     strip_count = 0
     strip_chars_found = []
@@ -261,6 +262,7 @@ class Sanitisation:
         self.log_files = []
         self.old_path = ''
         self.sanitised_list = []
+        self.no_of_retries = 3
 
         self.hidden_dir = dirs['hidden']
         self.illegal_log_dir = dirs['log'] #TODO: Really?
@@ -770,6 +772,8 @@ class Sanitisation:
             pf = open(self.pid_file, 'w')
             pf.write(str(os.getpid()))
 
+
+
     def move_files(self, source, dest, files, copied_files):
         if self.started_transfer:
             self.started_transfer.set()
@@ -783,7 +787,17 @@ class Sanitisation:
                 file_path = f
             target = os.path.join(dest,file_path)
             if os.path.exists(f): # Guards against resource fork disappearance
-                shutil.move(f, target)
+                for i in range(self.no_of_retries):
+                    try:
+                        shutil.move(f, target)
+                        break
+                    except:
+                        swisspy.print_and_log("Retrying {} - try {}"
+                                              "".format(f, i),
+                                              self.log_files,
+                                              ts=None,
+                                              quiet=self.quiet)
+                        pass
                 copied_files.append(file_path)
                 swisspy.print_and_log("\t" + file_path + "\n",
                                       self.log_files,
