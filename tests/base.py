@@ -99,6 +99,14 @@ class SanitiseTest(unittest.TestCase):
         make_dir_if_not_exists(self.log_renamed)
 
     def make_test_folder(self, dir_name, file_name=None):
+        """
+        Create a directory, and return its path and  a filepath within it to
+        be written to
+
+        :param dir_name: Directory to create
+        :param file_name: Name of file
+        :return: Dictionary
+        """
         dir_path = os.path.join(self.to_archive, dir_name)
         file_path = os.path.join(dir_path, file_name)
         os.mkdir(dir_path)

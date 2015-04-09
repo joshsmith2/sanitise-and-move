@@ -580,8 +580,8 @@ class Sanitisation:
 
                 if cleared_for_copy:
                     try:
-                        self.move_files(source, dest,
-                                        cleared_for_copy, copied_files)
+                        copied_files.extend(self.move_files(source, dest,
+                                                            cleared_for_copy))
                     except Exception as e:
                         msg = "A fatal error occurred while transferring: " +\
                               str(e) + "\n"
@@ -654,7 +654,6 @@ class Sanitisation:
                 msg = "The following error occurred when moving {0}/{1}:" \
                       "{2}".format(self.hidden_dir, o, e)
                 swisspy.print_and_log(msg, self.log_files, quiet=self.quiet)
-
 
     def rename_file(self, path_dict, prev_path, rename_log_file,
                     rename=False, indicator='^',):
@@ -772,9 +771,15 @@ class Sanitisation:
             pf = open(self.pid_file, 'w')
             pf.write(str(os.getpid()))
 
-
-
-    def move_files(self, source, dest, files, copied_files):
+    def move_files(self, source, dest, files):
+        """
+        :param source: The source directory to transfer from.
+        :param dest: The destination ditory to transfer to
+        :param files: Files to transfer
+        :param copied_files: A list of files already transferred
+        :return: A list of files copied.
+        """
+        copied_files = []
         if self.started_transfer:
             self.started_transfer.set()
         swisspy.print_and_log("Moving files cleared for copy"
@@ -782,7 +787,8 @@ class Sanitisation:
                               self.log_files, quiet=self.quiet)
         for f in files:
             if source in f:
-                file_path = self.strip_hidden([f], source + '/')[0]
+                # The join in the below line adds a trailing slash.
+                file_path = self.strip_hidden([f], os.path.join(source, ''))[0]
             else:
                 file_path = f
             target = os.path.join(dest,file_path)
@@ -792,17 +798,26 @@ class Sanitisation:
                         shutil.move(f, target)
                         break
                     except:
-                        swisspy.print_and_log("Retrying {} - try {}"
+                        swisspy.print_and_log("Retrying {0} - try {1}"
                                               "".format(f, i),
                                               self.log_files,
                                               ts=None,
                                               quiet=self.quiet)
-                        pass
                 copied_files.append(file_path)
                 swisspy.print_and_log("\t" + file_path + "\n",
                                       self.log_files,
                                       ts=None,
                                       quiet=self.quiet)
+        return copied_files
+
+    def set_logs(self, folder):
+        log_folder = os.path.join(self.illegal_log_dir, folder)
+        if not os.path.exists(log_folder):
+            os.mkdir(log_folder)
+        log_path =  os.path.join(log_folder,
+                                 swisspy.time_stamp('short') + ".log")
+        #A list of <260 char files to be logged to
+        self.log_files = [log_path[:259]]
 
 def main(s):
     """ Call the requisite functions of s, a Sanitisation object"""
@@ -833,13 +848,9 @@ def main(s):
                                            "Skipping this time.",
                               [s.temp_log_file], ts="long", quiet=s.quiet)
             return
-    log_folder = os.path.join(s.illegal_log_dir, folder)
-    if not os.path.exists(log_folder):
-        os.mkdir(log_folder)
-    log_path =  os.path.join(log_folder,
-                             swisspy.time_stamp('short') + ".log")
-    #A list of <260 char files to be logged to
-    s.log_files = [log_path[:259]]
+
+    s.set_logs(folder)
+
     swisspy.print_and_log("Processing " + folder + "\n",
                           s.log_files, quiet=s.quiet)
     # Move everything to the hidden folder, unless it's already there,

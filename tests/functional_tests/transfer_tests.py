@@ -344,17 +344,23 @@ class TrustSourceTest(SanitiseTest):
 class RetryTest(SanitiseTest):
 
     def test_failed_files_are_retried(self):
-        to_send = self.make_test_folder('sendme', 'sendy.txt')
-        with open(to_send['file'], 'w') as f:
+        directory = os.path.join(self.to_archive, 'sendme')
+        os.mkdir(directory)
+        _file = os.path.join(directory, 'sendy.txt')
+        with open(_file, 'w') as f:
             f.write("Willies.")
 
         s = self.minimal_object()
         s.pass_dir = '/dev/null'
-        main(s)
+        file_path = os.path.join('sendme', 'sendy.txt')
+
+        #Create log directory (usually handled by script)
+        log_directory = os.path.join(self.logs, 'sendme')
+        os.mkdir(log_directory)
+        s.move_files(self.to_archive, self.dest, [file_path])
 
         messages = ['Retrying', 'try 2']
-        self.check_in_logs(to_send['dir'], messages)
-
+        self.check_in_logs('sendme', messages)
 
 if __name__ == '__main__':
     unittest.main()
