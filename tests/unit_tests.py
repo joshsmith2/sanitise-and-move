@@ -42,7 +42,23 @@ class LogFileTest(SanitiseTest):
         s = self.minimal_object()
         s.set_logs('folder_name')
         log_folder = os.path.join(s.illegal_log_dir, 'folder_name')
+
+        self.assertTrue(os.path.exists(log_folder))
         log_file_pattern = os.path.join(log_folder, "[0-9]{4}-[0-9]{4}.log")
+        self.assertTrue(re.match(log_file_pattern, s.log_files[0]))
+
+    def test_long_filenames_handled_correctly(self):
+        free_hunnid = "12345678901234567890123456789012345678901234567890" \
+                      "12345678901234567890123456789012345678901234567890" \
+                      "12345678901234567890123456789012345678901234567890" \
+                      "12345678901234567890123456789012345678901234567890" \
+                      "12345678901234567890123456789012345678901234567890"
+        s = self.minimal_object()
+        s.set_logs(free_hunnid)
+
+        log_folder = os.path.join(s.illegal_log_dir, free_hunnid)[:246]
+        self.assertTrue(os.path.exists(log_folder))
+        log_file_pattern = os.path.join(log_folder, ("[0-9]{4}-[0-9]{4}.log"))
         self.assertTrue(re.match(log_file_pattern, s.log_files[0]))
 
 

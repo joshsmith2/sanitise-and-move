@@ -811,13 +811,12 @@ class Sanitisation:
         return copied_files
 
     def set_logs(self, folder):
-        log_folder = os.path.join(self.illegal_log_dir, folder)
+        log_folder = os.path.join(self.illegal_log_dir, folder)[:246]
         if not os.path.exists(log_folder):
             os.mkdir(log_folder)
         log_path =  os.path.join(log_folder,
                                  swisspy.time_stamp('short') + ".log")
-        #A list of <260 char files to be logged to
-        self.log_files = [log_path[:259]]
+        self.log_files = [log_path]
 
 def main(s):
     """ Call the requisite functions of s, a Sanitisation object"""
