@@ -782,8 +782,7 @@ class Sanitisation:
         copied_files = []
         if self.started_transfer:
             self.started_transfer.set()
-        swisspy.print_and_log("Moving files cleared for copy"
-                              "\n\tFiles transferred:\n",
+        swisspy.print_and_log("Moving files cleared for copy",
                               self.log_files, quiet=self.quiet)
         for f in files:
             if source in f:
@@ -791,23 +790,24 @@ class Sanitisation:
                 file_path = self.strip_hidden([f], os.path.join(source, ''))[0]
             else:
                 file_path = f
+            full_file_path = os.path.join(source, file_path)
             target = os.path.join(dest,file_path)
-            if os.path.exists(f): # Guards against resource fork disappearance
-                for i in range(self.no_of_retries):
+            if os.path.exists(full_file_path): # Guards against resource fork disappearance
+                for attempt in range(self.no_of_retries):
                     try:
                         shutil.move(f, target)
                         break
                     except:
-                        swisspy.print_and_log("Retrying {0} - try {1}"
-                                              "".format(f, i),
+                        swisspy.print_and_log("\t\nRETRY %s: %s"
+                                              "" % (attempt+1, f),
                                               self.log_files,
                                               ts=None,
                                               quiet=self.quiet)
                 copied_files.append(file_path)
-                swisspy.print_and_log("\t" + file_path + "\n",
-                                      self.log_files,
-                                      ts=None,
-                                      quiet=self.quiet)
+        swisspy.print_and_log('\n\n', log_files=self.log_files, ts=None)
+        log_list("Files transferred: ", copied_files,
+                 log_files=self.log_files)
+
         return copied_files
 
     def set_logs(self, folder):

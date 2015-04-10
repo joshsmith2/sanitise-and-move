@@ -355,11 +355,10 @@ class RetryTest(SanitiseTest):
         file_path = os.path.join('sendme', 'sendy.txt')
 
         #Create log directory (usually handled by script)
-        log_directory = os.path.join(self.logs, 'sendme')
-        os.mkdir(log_directory)
+        s.set_logs('sendme')
         s.move_files(self.to_archive, self.dest, [file_path])
 
-        messages = ['Retrying', 'try 2']
+        messages = ["RETRY %s: sendme/sendy.txt" % str(i) for i in range(1,4)]
         self.check_in_logs('sendme', messages)
 
 if __name__ == '__main__':

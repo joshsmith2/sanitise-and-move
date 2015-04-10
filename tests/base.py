@@ -141,9 +141,13 @@ class SanitiseTest(unittest.TestCase):
         self.get_log_contents(folder)
         for m in messages:
             if positive_test:
-                self.assertTrue(m in '\n'.join(self.log_contents))
+                message = "%s not found in logs." % m
+                self.assertTrue(m in '\n'.join(self.log_contents),
+                                msg=message)
             else:
-                self.assertFalse(m in '\n'.join(self.log_contents))
+                message = "%s found in logs." % m
+                self.assertFalse(m in '\n'.join(self.log_contents),
+                                 msg=message)
 
     def minimal_object(self):
         """Create and return a sanitisation object which will work, with
