@@ -79,15 +79,16 @@ def log_list(human_header,  the_list,
         The string with which to join the syslog list.
 
     """
-    if log_files:
-        swisspy.print_and_log(human_header + log_split +
-                              log_split.join(the_list) + "\n",
-                              log_files=log_files)
-    if syslog_files:
-        headedList = [syslog_header + l for l in the_list]
-        swisspy.print_and_log(syslog_split.join(headedList) + syslog_split,
-                              syslog_files=syslog_files,
-                              quiet=True, ts=None)
+    if the_list:
+        if log_files:
+            swisspy.print_and_log(human_header + log_split +
+                                  log_split.join(the_list) + "\n",
+                                  log_files=log_files)
+        if syslog_files:
+            headedList = [syslog_header + l for l in the_list]
+            swisspy.print_and_log(syslog_split.join(headedList) + syslog_split,
+                                  syslog_files=syslog_files,
+                                  quiet=True, ts=None)
 
 def move_and_create(source,dest):
     """Move a file from source to dest, creating intermediate directories

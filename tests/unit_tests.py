@@ -61,6 +61,15 @@ class LogFileTest(SanitiseTest):
         log_file_pattern = os.path.join(log_folder, ("[0-9]{4}-[0-9]{4}.log"))
         self.assertTrue(re.match(log_file_pattern, s.log_files[0]))
 
+    def test_log_list_doesnt_print_empty_lists(self):
+        temp_logfile = os.path.join(self.log, 'temp.txt')
+        log_list("Bad header", [], log_files=[temp_logfile])
+        log_list("Good header", ['jub', 'jub'], log_files=[temp_logfile])
+        with open(temp_logfile, 'r') as f:
+            log_contents = f.read()
+        self.assertFalse("Bad header" in log_contents)
+        self.assertTrue("Good header" in log_contents)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -355,13 +355,35 @@ class RetryTest(SanitiseTest):
         s = self.minimal_object()
         s.pass_dir = '/dev/null'
         file_path = os.path.join('sendme', 'sendy.txt')
-
         #Create log directory (usually handled by script)
         s.set_logs('sendme')
         s.move_files(self.to_archive, self.dest, [file_path])
 
         messages = ["RETRY %s: sendme/sendy.txt" % str(i) for i in range(1,4)]
         self.check_in_logs('sendme', messages)
+
+    def test_three_failures_leads_to_an_error_message(self):
+        directory = os.path.join(self.to_archive, 'sendme')
+        os.mkdir(directory)
+        _file = os.path.join(directory, 'sendy.txt')
+        with open(_file, 'w') as f:
+            f.write("Willies.")
+
+        s = self.minimal_object()
+        s.pass_dir = '/dev/null'
+        file_path = os.path.join('sendme', 'sendy.txt')
+        #Create log directory (usually handled by script)
+        s.set_logs('sendme')
+        s.move_files(self.to_archive, self.dest, [file_path])
+
+        unwanted = ["No transfer errors occurred.",
+                    "Files transferred:"]
+        self.check_in_logs('sendme', unwanted, positive_test=False)
+
+        wanted = ["FAILURE: The following file failed to transfer after 3 "
+                  "retries:\n\t%s" % file,
+                  "The error was"]
+        self.check_in_logs('sendme', wanted)
 
 if __name__ == '__main__':
     unittest.main()
