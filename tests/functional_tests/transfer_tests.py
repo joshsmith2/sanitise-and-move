@@ -2,6 +2,7 @@
 
 from base import *
 import unittest
+import time
 
 class FileTransferTest(SanitiseTest):
 
@@ -216,6 +217,7 @@ class TrustSourceTest(SanitiseTest):
             dest_contents = f.readlines()
 
         self.assertTrue("BANGABANG" in dest_contents)
+        time.sleep(1)
 
         create_test_dir("HANGABANG")
         second_mod_time = os.path.getmtime(source_file)
