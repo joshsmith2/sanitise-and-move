@@ -794,17 +794,26 @@ class Sanitisation:
             full_file_path = os.path.join(source, file_path)
             target = os.path.join(dest,file_path)
             if os.path.exists(full_file_path): # Guards against resource fork disappearance
-                for attempt in range(self.no_of_retries):
+                # 1-indexed
+                for attempt in [i+1 for i in range(self.no_of_retries)]:
                     try:
                         shutil.move(f, target)
+                        copied_files.append(file_path)
                         break
-                    except:
-                        swisspy.print_and_log("\t\nRETRY %s: %s"
-                                              "" % (attempt+1, f),
+                    except Exception as e:
+                        swisspy.print_and_log("\n\tRETRY %s: %s"
+                                              "" % (attempt, f),
                                               self.log_files,
                                               ts=None,
                                               quiet=self.quiet)
-                copied_files.append(file_path)
+                        if attempt == self.no_of_retries:
+                            msg = "\n\tFAILURE: The following file failed to " \
+                                  "transfer after %i attempts:%s\n\t" \
+                                  "The error was %s" % (self.no_of_retries,
+                                                        f, e)
+                            swisspy.print_and_log(msg, self.log_files,
+                                                  ts=None, quiet=self.quiet)
+
         swisspy.print_and_log('\n\n', log_files=self.log_files, ts=None)
         log_list("Files transferred: ", copied_files,
                  log_files=self.log_files)

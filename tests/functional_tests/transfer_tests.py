@@ -381,7 +381,7 @@ class RetryTest(SanitiseTest):
         self.check_in_logs('sendme', unwanted, positive_test=False)
 
         wanted = ["FAILURE: The following file failed to transfer after 3 "
-                  "retries:\n\t%s" % file,
+                  "attempts:",
                   "The error was"]
         self.check_in_logs('sendme', wanted)
 
