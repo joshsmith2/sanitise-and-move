@@ -1,4 +1,6 @@
 .idea/
+tests/test_file*
+
 
 # ^^^ Additional joshbits ^^^
 # vvv Standared python .gitignore vvv
