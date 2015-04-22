@@ -617,9 +617,9 @@ class Sanitisation:
                     try:
                         os.remove(esf.path)
                     except Exception as e:
-                        swisspy.print_and_log("Could not delete " + esf +\
-                                              " due to the following error:"
-                                              " " + str(e),
+                        swisspy.print_and_log("Could not delete %s due to the "
+                                              "following error: "
+                                              "%s" % (esf.path, e),
                                               self.log_files,
                                               quiet=self.quiet)
 
@@ -810,7 +810,7 @@ class Sanitisation:
                             msg = "\n\tFAILURE: The following file failed to " \
                                   "transfer after %i attempts:%s\n\t" \
                                   "The error was %s" % (self.no_of_retries,
-                                                        f, e)
+                                                        f, str(e))
                             swisspy.print_and_log(msg, self.log_files,
                                                   ts=None, quiet=self.quiet)
 
