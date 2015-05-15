@@ -343,6 +343,31 @@ class TrustSourceTest(SanitiseTest):
                     "will be transferred since trust source is set."]
         self.check_in_logs('a_dir', expected)
 
+    def test_trust_source_will_not_transfer_identical_preexisting_files(self):
+        dir_source = os.path.join(self.to_archive, 'a_dir')
+        dir_dest = os.path.join(self.dest, 'a_dir')
+        dir_problem = os.path.join(self.problem_files, 'a_dir')
+        file_source = os.path.join(dir_source, 'a_file')
+        file_dest = os.path.join(dir_dest, 'a_file')
+
+        # Create dir to move
+        os.mkdir(dir_source)
+        with open(file_source, 'w') as f:
+            f.write('12345')
+        shutil.copytree(dir_source, dir_dest)
+        self.assertTrue(os.path.exists(file_dest))
+
+        s = self.minimal_object()
+        s.trust_source = True
+        main(s)
+
+        unwanted = ["files already exist in %s, but will be transferred"]
+        self.check_in_logs('a_dir', unwanted, positive_test=False)
+        wanted = ["1 files already have up-to-date copies"]
+        self.check_in_logs('a_dir', wanted)
+
+
+
 class RetryTest(SanitiseTest):
 
     def test_failed_files_are_retried(self):
@@ -357,7 +382,8 @@ class RetryTest(SanitiseTest):
         file_path = os.path.join('sendme', 'sendy.txt')
         #Create log directory (usually handled by script)
         s.set_logs('sendme')
-        s.move_files(self.to_archive, self.dest, [file_path])
+        self.assertRaises(IOError, s.move_files, self.to_archive, self.dest,
+                          [file_path])
 
         messages = ["RETRY %s: sendme/sendy.txt" % str(i) for i in range(1,4)]
         self.check_in_logs('sendme', messages)
@@ -374,10 +400,9 @@ class RetryTest(SanitiseTest):
         file_path = os.path.join('sendme', 'sendy.txt')
         #Create log directory (usually handled by script)
         s.set_logs('sendme')
-        s.move_files(self.to_archive, self.dest, [file_path])
-
-        unwanted = ["No transfer errors occurred.",
-                    "Files transferred:"]
+        self.assertRaises(IOError, s.move_files, self.to_archive, self.dest,
+                          [file_path])
+        unwanted = ["Files transferred:"]
         self.check_in_logs('sendme', unwanted, positive_test=False)
 
         wanted = ["FAILURE: The following file failed to transfer after 3 "

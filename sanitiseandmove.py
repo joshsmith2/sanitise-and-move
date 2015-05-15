@@ -12,7 +12,6 @@ Contact: joshsmith2@gmail.com
 
 
 #FORMATTING:
-#TODO: Line lengths
 #TODO: Change the_root to hidden?
 
 import atexit
@@ -644,7 +643,7 @@ class Sanitisation:
                 os.mkdir(moved_to)
                 # Removed 'try' here
                 msg = "{0} has been moved to {1}/{2}.\nPlease move or delete " \
-                      "the folder from this lovcation once it is no longer " \
+                      "the folder from this location once it is no longer " \
                       "required.\n".format(o, moved_to, o)
                 swisspy.print_and_log(msg, self.log_files, quiet=self.quiet)
             else:
@@ -813,7 +812,7 @@ class Sanitisation:
                                                         f, str(e))
                             swisspy.print_and_log(msg, self.log_files,
                                                   ts=None, quiet=self.quiet)
-
+                            raise
         swisspy.print_and_log('\n\n', log_files=self.log_files, ts=None)
         log_list("Files transferred: ", copied_files,
                  log_files=self.log_files)
