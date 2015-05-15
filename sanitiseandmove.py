@@ -220,7 +220,6 @@ class Sanitisation:
     which will be referred to throughout in order to avoid passing global
     variables around.
     """
-
     def __init__(self, pass_dir, case_sens=False,
                  error_log_file_name = None, log_file=None, location=None,
                  logstash_dir='/var/log/sanitisePathsSysLogs', oversize_log_file_name=None, quiet=False,
@@ -554,6 +553,7 @@ class Sanitisation:
                 swisspy.print_and_log("Please version these files " +\
                                       "and attempt the upload again.\n",
                                       self.log_files, quiet=self.quiet)
+                raise IOError("Larger files exist on the server")
 
             else: # Transfer can go ahead!
                 if different_but_trusted:
@@ -587,6 +587,7 @@ class Sanitisation:
                               str(e) + "\n"
                         swisspy.print_and_log(msg, self.log_files,
                                               quiet=self.quiet)
+                        raise
 
                     else:
                         swisspy.print_and_log("No transfer errors occurred. " +\
@@ -601,15 +602,9 @@ class Sanitisation:
 
         if existing_same_files:
             msg = "{0} files already have up-to-date copies in the archive, " \
-                  "and were therefore not transferred."\
+                  "and were therefore not transferred.\n"\
                   .format(len(existing_same_files))
             swisspy.print_and_log(msg, self.log_files, quiet=self.quiet)
-
-            log_list("",
-                     self.strip_hidden([e.path for e in existing_same_files], prefix),
-                     log_files=[],
-                     syslog_files=[self.logstash_files['there_but_same']],
-                     )
 
             if not existing_differing_files:
                 for esf in existing_same_files:
@@ -807,7 +802,7 @@ class Sanitisation:
                                               quiet=self.quiet)
                         if attempt == self.no_of_retries:
                             msg = "\n\tFAILURE: The following file failed to " \
-                                  "transfer after %i attempts:%s\n\t" \
+                                  "transfer after %i attempts: %s\n\t" \
                                   "The error was %s" % (self.no_of_retries,
                                                         f, str(e))
                             swisspy.print_and_log(msg, self.log_files,

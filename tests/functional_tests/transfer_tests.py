@@ -285,7 +285,7 @@ class TrustSourceTest(SanitiseTest):
 
         s = self.minimal_object()
         s.trust_source = True
-        main(s)
+        self.assertRaises(IOError, main, s)
 
         # Check the source has gone
         self.assertFalse(os.path.exists(file_source))
@@ -409,6 +409,29 @@ class RetryTest(SanitiseTest):
                   "attempts:",
                   "The error was"]
         self.check_in_logs('sendme', wanted)
+
+    def test_exits_after_first_error(self):
+        directory = os.path.join(self.to_archive, 'sendme')
+        os.mkdir(directory)
+        files = [os.path.join(directory, 'file_{0}.txt'.format(i)) for i in range(1,4)]
+        for _file in files:
+            with open(_file, 'w') as f:
+                f.write("Willies.")
+
+        s = self.minimal_object()
+        s.pass_dir = '/dev/null'
+        #Create log directory (usually handled by script)
+        s.set_logs('sendme')
+        self.assertRaises(IOError, s.move_files, self.to_archive, self.dest,
+                          files)
+        unwanted = ["Files transferred:", "file_2"]
+        self.check_in_logs('sendme', unwanted, positive_test=False)
+
+        wanted = ["FAILURE: The following file failed to transfer after 3 "
+                  "attempts:",
+                  "The error was"]
+        self.check_in_logs('sendme', wanted)
+
 
 if __name__ == '__main__':
     unittest.main()
