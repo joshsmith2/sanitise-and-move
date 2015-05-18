@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #This script will check through all subfolders and files inside dir and remove all occurences of problematic characters
-# Version 1.01
+# Version 1.02
 
 import sys
 import os
@@ -78,12 +78,21 @@ def renameFile(prevPath, newPath, rename):
             logFile.write( timeStamp() + "Would change:	 " + prevPath + "\n")
             logFile.write( timeStamp() + "Would change to: " + newPath + "\n")
 
+def remove_trailing_periods(path):
+    working_path = path
+    for character in reversed(path):
+        if character == '.':
+            working_path = working_path[:-1]
+        else:
+            return working_path
+
 def renameToClean(path, obj, objType):
         #Takes an object (a string - either a file or a directory, as defined in 'type' which must be one of 'file' or 'dir') and, if the string has any forbidden characters, sanitises it and renames it.
 
         fullPath = os.path.join(path, obj)
 
         cleanObj = sanitise(obj)
+        cleanObj = remove_trailing_periods(cleanObj)
 
         cleanPath = fullPath #This is a little dishonest here, since the path hasn't been cleaned yet, but it will change as soon as any sanitisation goes on
 
