@@ -14,8 +14,6 @@ except ImportError:
         sys.path.append(sam_dirname)
         from sanitiseandmove import *
 
-
-
 def make_dir_if_not_exists(dir):
     try:
         os.mkdir(dir)

@@ -4,7 +4,19 @@ from base import *
 import unittest
 import time
 
+def is_empty(directory):
+    contents = len(os.listdir(directory))
+    is_empty = True
+    if contents > 0:
+        is_empty = False
+    return is_empty
+
 class FileTransferTest(SanitiseTest):
+
+    def check_files_moved_to_dest(self):
+        self.assertTrue(is_empty(self.hidden))
+        self.assertTrue(is_empty(self.problem_files))
+        self.assertFalse(is_empty(self.dest))
 
     def test_do_not_move_files_not_in_a_directory(self):
         orphan_file_path = os.path.join(self.to_archive, 'orphan.txt')
@@ -30,6 +42,7 @@ class FileTransferTest(SanitiseTest):
         self.assertFalse(os.path.exists(os.path.join(self.source,
                                                      'Problem Files',
                                                      'new_dir')))
+        self.check_files_moved_to_dest()
 
     # Transfer files without changing the modification time, md5, name etc.
     def test_file_gets_there_intact(self):
@@ -54,6 +67,7 @@ class FileTransferTest(SanitiseTest):
 
         self.assertEqual(observed_md5, correct_md5)
         self.assertEqual(observed_mod_time, correct_mod_time)
+        self.check_files_moved_to_dest()
 
     # Do not transfer any existing same files
     def test_same_files_not_transferred(self):
@@ -171,23 +185,26 @@ class FileTransferTest(SanitiseTest):
         for c in changed_paths:
             self.assertTrue(os.path.exists(c), c + " does not exist")
 
+    def test_nested_directories_tranfer_ok(self):
+        dirs_to_create = []
+        root = 'banhammer_20501'
+        dirs_to_create.append(root)
+        for i in range(4):
+            child = os.path.join(root, 'child_job_60060_' + str(i))
+            dirs_to_create.append(child)
+            for j in range(4):
+                grandchild = os.path.join(child, 'grandchild_job_' + str(j))
+                dirs_to_create.append(grandchild)
+        for d in dirs_to_create:
+            path = os.path.join(self.to_archive, d)
+            os.mkdir(path)
+        s=self.minimal_object()
+        main(s)
+        self.check_files_moved_to_dest()
+        for d in dirs_to_create:
+            dest_path = os.path.join(self.dest, d)
+            self.assertTrue(os.path.exists(dest_path))
 
-
-    # Error on any existing different files
-
-    # Transfer any new files in existing directories
-
-    # If the connection is broken, error nicely
-
-    # Not be able to run twice on the same directory
-
-    # Delete successfully retried files from PF
-
-    # Log files which want to be logged, put them into pf and do not transfer.
-
-    # Remove resource forks properly
-
-    #
 
 class TrustSourceTest(SanitiseTest):
 
@@ -365,6 +382,8 @@ class TrustSourceTest(SanitiseTest):
         self.check_in_logs('a_dir', unwanted, positive_test=False)
         wanted = ["1 files already have up-to-date copies"]
         self.check_in_logs('a_dir', wanted)
+
+
 
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #This script will check through all subfolders and files inside dir and remove all occurences of problematic characters
-# Version 1.02
+# Version 1.03
 
 import sys
 import os
@@ -92,7 +92,7 @@ def renameToClean(path, obj, objType):
         fullPath = os.path.join(path, obj)
 
         cleanObj = sanitise(obj)
-        cleanObj = remove_trailing_periods(cleanObj)
+        cleanObj = remove_trailing_characters(cleanObj)
 
         cleanPath = fullPath #This is a little dishonest here, since the path hasn't been cleaned yet, but it will change as soon as any sanitisation goes on
 
