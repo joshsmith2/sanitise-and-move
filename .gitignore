@@ -1,8 +1,9 @@
 .idea/
 tests/test_file*
-
+helper_scripts/versions_for_rafeek/
 
 # ^^^ Additional joshbits ^^^
+
 # vvv Standared python .gitignore vvv
 
 # Byte-compiled / optimized / DLL files
