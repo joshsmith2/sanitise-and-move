@@ -78,10 +78,10 @@ def renameFile(prevPath, newPath, rename):
             logFile.write( timeStamp() + "Would change:	 " + prevPath + "\n")
             logFile.write( timeStamp() + "Would change to: " + newPath + "\n")
 
-def remove_trailing_periods(path):
+def remove_trailing_characters(path, characters_to_remove=['.',' ']):
     working_path = path
     for character in reversed(path):
-        if character == '.':
+        if character in characters_to_remove:
             working_path = working_path[:-1]
         else:
             return working_path
