@@ -291,6 +291,8 @@ class Sanitisation:
             oversize_log_file_name = os.path.abspath(oversize_log_file_name)
         if rename_log_dir:
             rename_log_dir = os.path.abspath(rename_log_dir)
+        else:
+            rename_log_dir = os.path.join(pass_dir, 'Logs - renamed files')
 
         self.oversize_log_file_name = oversize_log_file_name
         self.rename_log_dir = rename_log_dir
@@ -842,6 +844,8 @@ def main(s):
                                   s.log_files, quiet=s.quiet)
             sys.exit(1)
         rename_log_file = os.path.join(s.rename_log_dir, folder + ".txt")
+        if not os.path.exists(s.rename_log_dir):
+            os.mkdir(s.rename_log_dir)
     else:
         rename_log_file = ""
     folder_start_path = os.path.join(s.to_archive_dir, folder)
