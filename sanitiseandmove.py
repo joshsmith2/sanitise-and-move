@@ -1,4 +1,5 @@
-#!/usr/bin/env python2.6
+#!/usr/bin/env python2
+# (This script tested with Python 2.6 and 2.7)
 """
 Search for characters in filenames which are illegal in Windows. Either log or
 remove these.
@@ -425,11 +426,14 @@ class Sanitisation:
         source_to_log = source.split('/')[-1]
         prefix = source[:-len(source_to_log)]
 
-        #Check source itself before walking
+        # If the root folder doesn't exist in the destination, try simply
+        # moving it since we don't need to merge.
         if not os.path.exists(dest):
             try:
+                # TODO: Remove this deprecated option (Anything with 'set()')
                 if self.started_transfer:
                     self.started_transfer.set()
+                # Try and move things, abort on error.
                 try:
                     shutil.move(source, dest)
                 except Exception as e:
@@ -454,6 +458,8 @@ class Sanitisation:
             for root, dirs, files in os.walk(dest):
                 for f in files:
                      copied_files.append(os.path.join(root,f))
+
+        # Otherwise, move the data and merge it with the existing stuff in dest.
         else:
             swisspy.print_and_log("Examining " + dest +
                                   " for existing files\n",
@@ -462,13 +468,13 @@ class Sanitisation:
 
                 # These are threading events used when testing transfers - in
                 # this case to modify the file after it's been scanned and set
-                # for archive.
+                # for archive. They're not being used.
                 if self.scanned_source:
                     self.scanned_source.set()
                 if self.pause_after_scan:
                     self.pause_after_scan.wait(10)
 
-                #Starting from the deepest file
+                #Starting from the deepest file..
                 for f in files:
                     source_file = File(path=os.path.join(root,f))
                     path_after_source = source_file.path[len(source)+1:]
@@ -494,7 +500,9 @@ class Sanitisation:
                                 existing_differing_files.append((source_file,
                                                                  dest_file))
 
-                            # If the sizes are different, so are the files.
+                            # If the source is larger, but 'trust source' is set,
+                            # overwrite the dest.
+                            # (This is somewhat of a hack).
                             if source_file.size >= dest_file.size:
                                 if self.trust_source:
                                     different_but_trusted.append((source_file,
@@ -519,6 +527,8 @@ class Sanitisation:
                     else:
                         cleared_for_copy.append(source_file.path)
 
+                # If the whole directory doesn't exist in the destination, just
+                # put it on the 'to copy' list without walking it.
                 for d in dirs:
                     dir = os.path.join(root,d)
                     after_source = dir[len(source)+1:]
@@ -527,6 +537,8 @@ class Sanitisation:
                         #Remove this directory from the list of dirs to be walked
                         dirs.remove(d)
 
+            # If there are files attempting transfer which exist on the archive,
+            # and which shouldn't be overwritten, log this and fail the transfer.
             if existing_differing_files:
                 file_reports=[]
                 file_no = 1
@@ -817,12 +829,17 @@ class Sanitisation:
         return copied_files
 
     def set_logs(self, folder):
+        """
+        Set up variables and paths for files to log to
+
+        :param folder: Project folder which these logs concern (e.g 207042)
+        """
         log_folder = os.path.join(self.illegal_log_dir, folder)[:246]
         if not os.path.exists(log_folder):
             os.mkdir(log_folder)
         log_path =  os.path.join(log_folder,
                                  swisspy.time_stamp('short') + ".log")
-        self.log_files = [log_path]
+        self.log_files = [log_path] # Files to log to
 
 def main(s):
     """ Call the requisite functions of s, a Sanitisation object"""
@@ -836,7 +853,7 @@ def main(s):
     except IndexError: #'To Archive dir is empty"
         return
 
-    deleted_files = []
+    deleted_files = [] # No files (E.g .DS_Stores) have been deleted yet.
     if s.rename:
         if not s.rename_log_dir:
             swisspy.print_and_log("Please specify a directory to log "
@@ -847,8 +864,12 @@ def main(s):
         if not os.path.exists(s.rename_log_dir):
             os.mkdir(s.rename_log_dir)
     else:
+        # Don't log renamins
         rename_log_file = ""
+
+    # The 'starting location' for the folder (i.e 'To Archive')
     folder_start_path = os.path.join(s.to_archive_dir, folder)
+
     #Check the directory to be copied isn't still being written to:
     if swisspy.dir_being_written_to(folder_start_path):
             swisspy.print_and_log(folder + " is being written to. "
@@ -856,10 +877,12 @@ def main(s):
                               [s.temp_log_file], ts="long", quiet=s.quiet)
             return
 
+    # Create log folder for this project
     s.set_logs(folder)
 
     swisspy.print_and_log("Processing " + folder + "\n",
                           s.log_files, quiet=s.quiet)
+
     # Move everything to the hidden folder, unless it's already there,
     # in which case move it to Problem Files
     if folder in swisspy.immediate_subdirs(s.the_root):
@@ -872,13 +895,15 @@ def main(s):
     else:
         shutil.move(folder_start_path, os.path.join(s.the_root,folder))
 
-    #Sanitise the directory itself, and update 'folder' if a change is made
+    #Sanitise directory itself, and update 'folder' if a change is made
     s.rename_to_clean(folder, s.the_root, 'dir', rename_log_file)
     if sanitise(folder)['out_string'] != folder:
         folder = sanitise(folder)['out_string']
     target_path = os.path.join(s.the_root, folder)
-    s.errors_found = False
 
+    # Walk the directory tree and sanitise the rest of the data
+    #TODO: Change 'errors_found' to 'illegal_characters_found'
+    s.errors_found = False
     for path, dirs, files in os.walk(target_path, topdown=False):
         #Sanitise file names
         for f in files:
@@ -897,13 +922,17 @@ def main(s):
         for d in dirs:
             s.rename_to_clean(d, path, 'dir', rename_log_file)
 
+    # No errors, or told to rename anyway? Great! Get moving.
     if not s.errors_found or s.rename:
+        # ('Pass folder' throughout means 'Destination - a Giles hangover.)
         passFolder = os.path.join(s.pass_dir, folder)
         msg = "Finished sanitising {0}. Moving to {1}\n".format(folder,
                                                                 s.pass_dir)
         swisspy.print_and_log(msg, s.log_files, quiet=s.quiet)
         s.move_and_merge(target_path, passFolder)
 
+    # If we've found some abberrant characters, and the rename flag isn't set,
+    # then move the project to 'Problem Files'
     else:
         try:
             shutil.move(target_path, s.problem_dir)

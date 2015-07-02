@@ -33,8 +33,7 @@ class SanitiseTest(unittest.TestCase):
 
         # Get the path of this script, and its containing directory (the test dir).
         self.script_path = os.path.abspath(inspect.stack()[0][1])
-        self.functional_tests_dir = os.path.dirname(self.script_path)
-        self.tests_dir = os.path.dirname(self.functional_tests_dir)
+        self.tests_dir = os.path.dirname(self.script_path)
         self.root_dir = os.path.dirname(self.tests_dir)
         self.log_contents = ""
 
