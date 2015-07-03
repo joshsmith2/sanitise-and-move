@@ -10,7 +10,7 @@ import threading
 try:
         from sanitiseandmove import *
 except ImportError:
-        sam_dirname = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        sam_dirname = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         sys.path.append(sam_dirname)
         from sanitiseandmove import *
 

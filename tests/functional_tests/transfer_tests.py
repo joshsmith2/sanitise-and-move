@@ -1,8 +1,13 @@
 #!/usr/bin/python
-
-from base import *
-import unittest
+import os
+import sys
 import time
+import unittest
+
+
+test_dirname = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(test_dirname)
+from base import *
 
 def is_empty(directory):
     contents = len(os.listdir(directory))
