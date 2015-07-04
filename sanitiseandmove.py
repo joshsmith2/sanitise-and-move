@@ -492,8 +492,9 @@ class Sanitisation:
                         dest_file.modification_time = ctime(dest_file.m_time_secs)
 
                         # If size and mod time are the same, so are the files.
+			# Using 'str()' here rounds the times to 2/10 of a sec
                         if source_file.size == dest_file.size and \
-                           source_file.m_time_secs == dest_file.m_time_secs:
+                           str(source_file.m_time_secs) == str(dest_file.m_time_secs):
                             existing_same_files.append(source_file)
                         else:
                             if source_file.size < dest_file.size:

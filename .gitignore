@@ -1,6 +1,8 @@
 .idea/
 tests/test_file*
 helper_scripts/versions_for_rafeek/
+*.swp
+*.swo
 
 # ^^^ Additional joshbits ^^^
 
