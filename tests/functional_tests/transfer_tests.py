@@ -1,8 +1,11 @@
-#!/usr/bin/python
-
-from base import *
-import unittest
+import os
+import sys
 import time
+import unittest
+
+test_dirname = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(test_dirname)
+from base import *
 
 def is_empty(directory):
     contents = len(os.listdir(directory))
@@ -23,7 +26,10 @@ class FileTransferTest(SanitiseTest):
         with open(orphan_file_path, 'w') as orphan_file:
             orphan_file.write("NO MOVEY FILEY")
 
-        sp.check_call(self.minimal_command)
+        try:
+            out = sp.check_call(self.minimal_command, stderr=sp.PIPE)
+        except CalledProcessError:
+            print "a"
 
         self.assertTrue(os.path.exists(orphan_file_path))
         assert not os.path.exists(os.path.join(self.dest, 'orphan.txt'))
